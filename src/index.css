@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+/* Optional: ensures full-viewport layouts play nice */
+@layer base {
+  html, body, #root { height: 100%; }
+}
