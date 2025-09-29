@@ -142,7 +142,7 @@ function loadScores() {
 function saveScore(entry) {
   const list = loadScores();
   list.push(entry);
-  list.sort((a,b)=> (b.score - a.score) || (new Date(b.date) - new Date(a.date)) );
+  list.sort((a, b) => (b.score - a.score) || (new Date(b.date) - new Date(a.date)));
   localStorage.setItem(LS_SCORES, JSON.stringify(list.slice(0, 100)));
 }
 function loadSessions() {
@@ -162,7 +162,7 @@ async function appendSession(entry) {
 }
 function exportSessionsCSV() {
   const rows = loadSessions();
-  const headers = ['sessionId','name','score','lives','startedAt','endedAt','status'];
+  const headers = ['sessionId', 'name', 'score', 'lives', 'startedAt', 'endedAt', 'status'];
   const csv = [headers.join(',')]
     .concat(rows.map(r => headers.map(h => JSON.stringify(r[h] ?? '')).join(',')))
     .join('\n');
@@ -174,7 +174,7 @@ function exportSessionsCSV() {
   setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
 }
 function newSessionId() {
-  return 'sess_' + Math.random().toString(36).slice(2,8) + Date.now().toString(36);
+  return 'sess_' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36);
 }
 
 export default function App() {
@@ -282,11 +282,22 @@ export default function App() {
     setPos(() => Math.max(0, Math.min(NODES.length - 1, targetIndex)));
   }
 
+  // Add this helper above the App function:
+  function getAnsweredThreats(seenThreats, playerAnswers) {
+    return THREATS.filter(t => seenThreats.has(t.id)).map(t => ({
+      ...t,
+      userAnswer: playerAnswers[t.id],
+    }));
+  }
+
+  const [playerAnswers, setPlayerAnswers] = useState({});
+
   function choose(ans) {
     if (!activeThreat || answered) return;
     const isCorrect = ans === activeThreat.mitigation;
     setAnswered(isCorrect ? "correct" : "wrong");
     setSeenThreats(new Set([...seenThreats, activeThreat.id]));
+    setPlayerAnswers(prev => ({ ...prev, [activeThreat.id]: ans }));
     if (isCorrect) {
       setScore((s) => s + (hintUsed ? 5 : 10));
       setTimeout(() => attemptForward(), 700);
@@ -294,6 +305,8 @@ export default function App() {
       setLives((l) => l - 1);
     }
   }
+
+  //
 
   function restart() {
     // Log current session if it hasn't been saved yet (e.g., user resets mid-run)
@@ -328,11 +341,7 @@ export default function App() {
       <div className="mx-auto max-w-5xl">
         <header className="mb-4 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">WADDLE: Threat Modeling Game</h1>
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              Step into the world of <span className="font-semibold">THREAT MODELING</span> and help the duck uncover risks hiding inside his app!
-              Learn simple techniques to spot threats early, strengthen your code, and keep apps safe.
-            </p>
+            <h1 className="text-3xl font-bold tracking-tight">WADDLE - Threat Modeling Game</h1>
           </div>
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium bg-slate-100 text-slate-800 border border-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700 min-h-15 min-w-15 min-h-[3.75rem] min-w-[6rem]">Player: {playerName}</span>
@@ -349,51 +358,107 @@ export default function App() {
           <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="w-full max-w-3xl rounded-2xl bg-white dark:bg-slate-900 shadow-xl border dark:border-slate-700">
               <div className="px-5 pt-4 pb-2 flex items-center justify-between">
-                <h2 className="text-lg font-semibold">WADDLE ↔ STRIDE quick guide</h2>
+                <h2 className="text-lg font-semibold">Welcome to WADDLE – Threat Modeling Game</h2>
                 <button
                   className="rounded-lg px-2 py-1 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border dark:border-slate-700"
                   onClick={() => setShowWelcome(false)}
-                  aria-label="Close guide"
-                >✕</button>
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
               </div>
-              <div className="px-5 pb-4 space-y-3">
-                <p className="text-sm text-slate-600 dark:text-slate-300">Enter your name to start, then match each WADDLE letter to its STRIDE category and choose the best mitigation.</p>
 
+              <div className="px-5 pb-4 space-y-5 text-sm">
                 {/* Name input */}
                 <div className="flex items-end gap-3">
                   <label className="text-sm font-medium w-28" htmlFor="playerName">Your name</label>
-                  <input id="playerName" value={playerName} onChange={(e)=>setPlayerName(e.target.value)} placeholder="e.g., Alex" className="flex-1 rounded-lg border px-3 py-2 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 outline-none focus:ring-2 focus:ring-sky-400" />
+                  <input
+                    id="playerName"
+                    value={playerName}
+                    onChange={(e) => setPlayerName(e.target.value)}
+                    placeholder="e.g., Alex"
+                    className="flex-1 rounded-lg border px-3 py-2 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 outline-none focus:ring-2 focus:ring-sky-400"
+                  />
                   <button
                     className="rounded-xl border px-3 py-2 text-sm hover:bg-slate-50 disabled:opacity-50"
-                    onClick={() => { if (playerName.trim()) { localStorage.setItem(LS_PLAYER, playerName.trim()); setShowWelcome(false);} }}
+                    onClick={() => {
+                      if (playerName.trim()) {
+                        localStorage.setItem(LS_PLAYER, playerName.trim());
+                        setShowWelcome(false);
+                      }
+                    }}
                     disabled={!playerName.trim()}
-                  >Start</button>
+                  >
+                    Start
+                  </button>
                 </div>
 
-                <div className="overflow-x-auto pt-3">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-slate-500 dark:text-slate-400">
-                        <th className="py-2 pr-3">WADDLE</th>
-                        <th className="py-2 pr-3">Name</th>
-                        <th className="py-2 pr-3">STRIDE</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {['W','A','D1','D2','L','E'].map(k => (
-                        <tr key={k} className="border-t">
-                          <td className="py-2 pr-3 font-semibold">{k.replace('D1','D').replace('D2','D')}</td>
-                          <td className="py-2 pr-3">{CATEGORIES[k].name}</td>
-                          <td className="py-2 pr-3"><span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium text-white ${CATEGORIES[k].color}`}>{CATEGORIES[k].stride}</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                {/* Instructions condensed */}
+                <div className="rounded-xl border bg-white dark:bg-slate-900 dark:border-slate-700 p-3">
+                  <div className="font-semibold mb-1">📖 Instructions</div>
+                  <p className="mb-2 text-slate-700 dark:text-slate-300">
+                    Help the duck navigate his new app, find the threats, and add security requirements before it’s too late.
+                  </p>
+                  <ul className="list-disc ml-5 space-y-1 text-slate-700 dark:text-slate-300">
+                    <li>🛝 Follow the data flow (Mobile App → 3rd Party) using ← → or by clicking nodes.</li>
+                    <li>🔥 At each node, match the <b>WADDLE</b> threat to its STRIDE category and choose the best mitigation.</li>
+                    <li>📋 Correct answers add actionable security requirements to your list.</li>
+                    <li>✅ Reach the final node to complete the run.</li>
+                  </ul>
+                </div>
+
+                {/* WADDLE ↔ STRIDE table (expanded) */}
+                <div className="rounded-xl border bg-white dark:bg-slate-900 dark:border-slate-700 p-3">
+                  <div className="font-semibold mb-2">WADDLE ↔ STRIDE quick guide</div>
+                  <div className="overflow-x-auto">
+                    {
+                      (() => {
+                        const META = {
+                          W: { property: "Authentication", definition: "Impersonating someone/something else.", key: "W" },
+                          A: { property: "Integrity", definition: "Altering data or code.", key: "A" },
+                          D1: { property: "Availability", definition: "Degrading or blocking service.", key: "D" },
+                          D2: { property: "Non-repudiation", definition: "Denying having performed an action.", key: "D" },
+                          L: { property: "Confidentiality", definition: "Exposing information to unauthorized parties.", key: "L" },
+                          E: { property: "Authorization", definition: "Gaining capabilities without permission.", key: "E" },
+                        };
+                        const order = ["W", "A", "D1", "D2", "L", "E"];
+                        return (
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="text-left text-slate-500 dark:text-slate-400">
+                                <th className="py-2 pr-3">WADDLE</th>
+                                <th className="py-2 pr-3">Name</th>
+                                <th className="py-2 pr-3">STRIDE</th>
+                                <th className="py-2 pr-3">Property Violated</th>
+                                <th className="py-2 pr-3">Threat definition</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {order.map((k) => (
+                                <tr key={k} className="border-t">
+                                  <td className="py-2 pr-3 font-semibold">{META[k].key}</td>
+                                  <td className="py-2 pr-3">{CATEGORIES[k].name}</td>
+                                  <td className="py-2 pr-3">
+                                    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium text-white ${CATEGORIES[k].color}`}>
+                                      {CATEGORIES[k].stride}
+                                    </span>
+                                  </td>
+                                  <td className="py-2 pr-3">{META[k].property}</td>
+                                  <td className="py-2 pr-3">{META[k].definition}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        );
+                      })()
+                    }
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         )}
+
 
         <div className="grid grid-cols-12 gap-4 items-stretch">
           {/* Path / Data Flow */}
@@ -447,11 +512,11 @@ export default function App() {
                   <div className="card-title text-base font-semibold flex items-center gap-2 mb-2">🔥 <span>Threat Encounter</span></div>
                   {!completed && activeThreat && (
                     <div className="flex flex-wrap items-center gap-2 ml-auto text-xs sm:text-sm">
-      
+
                       {categoryBadge(activeThreat.cat)}
                       <div className="flex flex-wrap gap-1 hidden">
                         {activeThreat.nodes.map(id => (
-                          <Badge key={id} className="bg-slate-100 text-slate-700 dark:text-slate-300 border border-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700">{NODES.find(n=>n.id===id)?.label || id}</Badge>
+                          <Badge key={id} className="bg-slate-100 text-slate-700 dark:text-slate-300 border border-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700">{NODES.find(n => n.id === id)?.label || id}</Badge>
                         ))}
                       </div>
                       <div className="hidden"><Badge className="bg-slate-100 text-slate-800 border border-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700">Node: {NODES[pos].label}</Badge></div>
@@ -547,7 +612,7 @@ export default function App() {
                             <tbody>
                               {scores.map((r, i) => (
                                 <tr key={`${r.name}-${r.date}-${i}`} className="border-t">
-                                  <td className="py-2 pr-3">{i+1}</td>
+                                  <td className="py-2 pr-3">{i + 1}</td>
                                   <td className="py-2 pr-3">{r.name}</td>
                                   <td className="py-2 pr-3 font-semibold">{r.score}</td>
                                   <td className="py-2 pr-3">{r.lives}</td>
@@ -573,8 +638,45 @@ export default function App() {
             </div>
           </div>
 
-          {/* Legend */}
+          {/* Security Requirements Panel */}
           <div className="col-span-12 lg:col-span-4">
+            <div className="card rounded-2xl border bg-white dark:bg-slate-900 dark:border-slate-700 shadow-sm h-full flex flex-col">
+              <div className="card-header px-4 pt-4 pb-2">
+                <div className="card-title text-base font-semibold">Security Requirements</div>
+              </div>
+              <div className="card-content p-4 pt-2 text-sm flex-1">
+                {getAnsweredThreats(seenThreats, playerAnswers).length === 0 ? (
+                  <div className="text-slate-500 dark:text-slate-400">No requirements yet. Answer threats to build your list.</div>
+                ) : (
+                  <div className="space-y-4">
+                    {getAnsweredThreats(seenThreats, playerAnswers).map((t, idx) => (
+                      <div key={t.id} className="border-b pb-3 mb-3 last:border-b-0 last:pb-0 last:mb-0">
+                        <div className="font-semibold mb-1">{t.text}</div>
+                        <div className="flex flex-col gap-1">
+                          <div>
+                            <span className="font-medium">Your Answer:</span>{" "}
+                            <span className={t.userAnswer === t.mitigation ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400"}>
+                              {t.userAnswer}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="font-medium">Security Requirement:</span>{" "}
+                            <span className="text-sky-700 dark:text-sky-400">{t.mitigation}</span>
+                          </div>
+                          <div>
+                            {categoryBadge(t.cat)}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Legend */}
+          <div className="col-span-12 lg:col-span-4 hidden">
             <div className="card rounded-2xl border bg-white dark:bg-slate-900 dark:border-slate-700 shadow-sm h-full flex flex-col">
               <div className="card-header px-4 pt-4 pb-2"><div className="card-title text-base font-semibold">WADDLE ↔ STRIDE</div></div>
               <div className="card-content p-4 pt-2 text-sm flex-1">
@@ -588,9 +690,9 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {['W','A','D1','D2','L','E'].map(k => (
+                      {['W', 'A', 'D1', 'D2', 'L', 'E'].map(k => (
                         <tr key={k} className="border-t">
-                          <td className="py-2 pr-3 font-semibold">{k.replace('D1','D').replace('D2','D')}</td>
+                          <td className="py-2 pr-3 font-semibold">{k.replace('D1', 'D').replace('D2', 'D')}</td>
                           <td className="py-2 pr-3">{CATEGORIES[k].name}</td>
                           <td className="py-2 pr-3"><span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium text-white ${CATEGORIES[k].color}`}>{CATEGORIES[k].stride}</span></td>
                         </tr>
