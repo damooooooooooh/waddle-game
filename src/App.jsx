@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useLayoutEffect } from "react";
 
 const NODES = [
   { id: "client", label: "Mobile App", desc: "User's Mobile App" },
@@ -190,6 +190,10 @@ export default function App() {
   const [playerName, setPlayerName] = useState(() => localStorage.getItem(LS_PLAYER) || "");
   const [blockedNotice, setBlockedNotice] = useState(false);
   const [savedThisRun, setSavedThisRun] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+  const dataFlowRef = useRef(null);
+  const threatRef = useRef(null);
+  const reqRef = useRef(null);
 
   // New session state
   const [sessionId, setSessionId] = useState("");
@@ -336,12 +340,133 @@ export default function App() {
 
   const scores = loadScores().slice(0, 5);
 
+  function TourOverlay({
+    step,
+    targetRef,
+    title,
+    body,
+    onNext,
+    onSkip,
+    targetAnchor = "bottom-middle",
+    tooltipAnchor = "top-middle"
+  }) {
+    const [rect, setRect] = useState({ top: 0, left: 0, width: 0, height: 0 });
+    const bubbleRef = useRef(null);
+    const [bubbleSize, setBubbleSize] = useState({ w: 0, h: 0 });
+    const PAD = 0; // same padding as highlight surround
+
+    useLayoutEffect(() => {
+      function calc() {
+        const el = targetRef?.current;
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        // include PAD so anchors are relative to highlighted surround
+        setRect({
+          top: r.top - PAD,
+          left: r.left - PAD,
+          width: r.width + PAD * 2,
+          height: r.height + PAD * 2
+        });
+        if (bubbleRef.current) {
+          const br = bubbleRef.current.getBoundingClientRect();
+          setBubbleSize({ w: br.width, h: br.height });
+        }
+      }
+      calc();
+      window.addEventListener("resize", calc);
+      window.addEventListener("scroll", calc, true);
+      return () => {
+        window.removeEventListener("resize", calc);
+        window.removeEventListener("scroll", calc, true);
+      };
+    }, [targetRef, step]);
+
+    const OFFSET = 14;
+
+    // --- 1. Get anchor point on highlight rect ---
+    function getTargetAnchor() {
+      switch (targetAnchor) {
+        case "bottom-middle": return [rect.left + rect.width / 2, rect.top + rect.height + OFFSET];
+        case "top-middle": return [rect.left + rect.width / 2, rect.top - OFFSET];
+        case "left-middle": return [rect.left - OFFSET, rect.top + rect.height / 2];
+        case "right-middle": return [rect.left + rect.width + OFFSET, rect.top + rect.height / 2];
+        default: return [rect.left, rect.top];
+      }
+    }
+
+    // --- 2. Tooltip anchor offset ---
+    function getTooltipOffset() {
+      switch (tooltipAnchor) {
+        case "top-middle": return [bubbleSize.w / 2, 0];
+        case "bottom-middle": return [bubbleSize.w / 2, bubbleSize.h];
+        case "left-middle": return [0, bubbleSize.h / 2];
+        case "right-middle": return [bubbleSize.w, bubbleSize.h / 2];
+        default: return [0, 0];
+      }
+    }
+
+    const [ax, ay] = getTargetAnchor();
+    const [ox, oy] = getTooltipOffset();
+
+    const left = ax - ox;
+    const top = ay - oy;
+
+    return (
+      <div className="fixed inset-0 z-[60]">
+        {/* backdrop */}
+        <div className="absolute inset-0 bg-black/40 z-[60]" />
+
+        {/* highlight ring */}
+        <div
+          className="pointer-events-none fixed rounded-2xl ring-4 ring-sky-400/70 z-[61]"
+          style={{ top: rect.top, left: rect.left, width: rect.width, height: rect.height }}
+        />
+
+        {/* bubble */}
+        <div
+          ref={bubbleRef}
+          className="fixed max-w-md rounded-2xl border bg-white dark:bg-slate-900 dark:border-slate-700 shadow-xl p-4 z-[62] relative"
+          style={{ left, top }}
+        >
+          <div className="text-sm font-semibold mb-1">{title}</div>
+          <p className="text-sm text-slate-700 dark:text-slate-300 mb-3">{body}</p>
+          <div className="flex items-center gap-2">
+            <button onClick={onNext} className="rounded-xl border px-3 py-2 text-sm">Next</button>
+            <button onClick={onSkip} className="rounded-xl border px-3 py-2 text-sm">Skip</button>
+          </div>
+
+          {/* caret */}
+          <div
+            className="absolute w-4 h-4 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700"
+            style={{
+              transform: "rotate(45deg)",
+              ...(
+                tooltipAnchor === "top-middle" ? { top: -8, left: "50%", transform: "translateX(-50%) rotate(45deg)" } :
+                  tooltipAnchor === "bottom-middle" ? { bottom: -8, left: "50%", transform: "translateX(-50%) rotate(45deg)" } :
+                    tooltipAnchor === "left-middle" ? { top: "50%", left: -8, transform: "translateY(-50%) rotate(45deg)" } :
+                      tooltipAnchor === "right-middle" ? { top: "50%", right: -8, transform: "translateY(-50%) rotate(45deg)" } :
+                        {}
+              )
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen min-h-dvh w-full bg-gradient-to-b from-sky-50 to-white dark:from-slate-950 dark:to-slate-900 p-6 text-slate-900 dark:text-slate-100">
       <div className="mx-auto max-w-5xl">
         <header className="mb-4 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">WADDLE - Threat Modeling Game</h1>
+            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+              <img
+                src={`${import.meta.env.BASE_URL}favicon-512x512.png`}
+                alt="WADDLE logo"
+                className="w-[3.75rem] h-[3.75rem]"
+              />
+              WADDLE – Threat Modeling Game
+            </h1>
           </div>
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium bg-slate-100 text-slate-800 border border-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700 min-h-15 min-w-15 min-h-[3.75rem] min-w-[6rem]">Player: {playerName}</span>
@@ -358,9 +483,9 @@ export default function App() {
           <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="w-full max-w-3xl rounded-2xl bg-white dark:bg-slate-900 shadow-xl border dark:border-slate-700">
               <div className="px-5 pt-4 pb-2 flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Welcome to WADDLE – Threat Modeling Game</h2>
+                <h2 className="text-lg font-semibold">WADDLE – Threat Modeling Game</h2>
                 <button
-                  className="rounded-lg px-2 py-1 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border dark:border-slate-700"
+                  className="rounded-lg px-2 py-1 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border dark:border-slate-700 hidden"
                   onClick={() => setShowWelcome(false)}
                   aria-label="Close"
                 >
@@ -371,12 +496,12 @@ export default function App() {
               <div className="px-5 pb-4 space-y-5 text-sm">
                 {/* Name input */}
                 <div className="flex items-end gap-3">
-                  <label className="text-sm font-medium w-28" htmlFor="playerName">Your name</label>
+
                   <input
                     id="playerName"
                     value={playerName}
                     onChange={(e) => setPlayerName(e.target.value)}
-                    placeholder="e.g., Alex"
+                    placeholder="Player Name..."
                     className="flex-1 rounded-lg border px-3 py-2 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 outline-none focus:ring-2 focus:ring-sky-400"
                   />
                   <button
@@ -385,6 +510,7 @@ export default function App() {
                       if (playerName.trim()) {
                         localStorage.setItem(LS_PLAYER, playerName.trim());
                         setShowWelcome(false);
+                        setTourStep(1);
                       }
                     }}
                     disabled={!playerName.trim()}
@@ -401,22 +527,22 @@ export default function App() {
                   </p>
                   <ul className="list-disc ml-5 space-y-1 text-slate-700 dark:text-slate-300">
                     <li>🛝 Follow the data flow (Mobile App → 3rd Party) using ← → or by clicking nodes.</li>
-                    <li>🔥 At each node, match the <b>WADDLE</b> threat to its STRIDE category and choose the best mitigation.</li>
-                    <li>📋 Correct answers add actionable security requirements to your list.</li>
-                    <li>✅ Reach the final node to complete the run.</li>
+                    <li>🔥 At each node, read the <b>WADDLE</b> threat and choose the best mitigating control.</li>
+                    <li>📋 Build an actionable list of security requirements to secure the ducks new app.</li>
+                    <li>✅ Reach the final node to complete the game.</li>
                   </ul>
                 </div>
 
                 {/* WADDLE ↔ STRIDE table (expanded) */}
                 <div className="rounded-xl border bg-white dark:bg-slate-900 dark:border-slate-700 p-3">
-                  <div className="font-semibold mb-2">WADDLE ↔ STRIDE quick guide</div>
+                  <div className="font-semibold mb-0">WADDLE Threat Guide</div>
                   <div className="overflow-x-auto">
                     {
                       (() => {
                         const META = {
-                          W: { property: "Authentication", definition: "Impersonating someone/something else.", key: "W" },
-                          A: { property: "Integrity", definition: "Altering data or code.", key: "A" },
-                          D1: { property: "Availability", definition: "Degrading or blocking service.", key: "D" },
+                          W: { property: "Authentication", definition: "Pretending to be something or someone other than yourself.", key: "W" },
+                          A: { property: "Integrity", definition: "Altering data, code or something else.", key: "A" },
+                          D1: { property: "Availability", definition: "Exhausting resources needed to provide a service.", key: "D" },
                           D2: { property: "Non-repudiation", definition: "Denying having performed an action.", key: "D" },
                           L: { property: "Confidentiality", definition: "Exposing information to unauthorized parties.", key: "L" },
                           E: { property: "Authorization", definition: "Gaining capabilities without permission.", key: "E" },
@@ -428,9 +554,9 @@ export default function App() {
                               <tr className="text-left text-slate-500 dark:text-slate-400">
                                 <th className="py-2 pr-3">WADDLE</th>
                                 <th className="py-2 pr-3">Name</th>
-                                <th className="py-2 pr-3">STRIDE</th>
                                 <th className="py-2 pr-3">Property Violated</th>
                                 <th className="py-2 pr-3">Threat definition</th>
+                                <th className="py-2 pr-3">STRIDE</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -438,13 +564,13 @@ export default function App() {
                                 <tr key={k} className="border-t">
                                   <td className="py-2 pr-3 font-semibold">{META[k].key}</td>
                                   <td className="py-2 pr-3">{CATEGORIES[k].name}</td>
+                                  <td className="py-2 pr-3">{META[k].property}</td>
+                                  <td className="py-2 pr-3">{META[k].definition}</td>
                                   <td className="py-2 pr-3">
                                     <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium text-white ${CATEGORIES[k].color}`}>
                                       {CATEGORIES[k].stride}
                                     </span>
                                   </td>
-                                  <td className="py-2 pr-3">{META[k].property}</td>
-                                  <td className="py-2 pr-3">{META[k].definition}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -463,7 +589,7 @@ export default function App() {
         <div className="grid grid-cols-12 gap-4 items-stretch">
           {/* Path / Data Flow */}
           <div className="col-span-12">
-            <div className="card overflow-hidden rounded-2xl border bg-white dark:bg-slate-900 dark:border-slate-700 shadow-sm">
+            <div ref={dataFlowRef} className="card overflow-hidden rounded-2xl border bg-white dark:bg-slate-900 dark:border-slate-700 shadow-sm">
               <div className="card-header px-4 pt-4 pb-2">
                 <div className="card-title text-base font-semibold flex items-center gap-2">🛡️ <span>Data Flow</span></div>
               </div>
@@ -506,10 +632,10 @@ export default function App() {
 
           {/* Threat / Quiz Panel */}
           <div className="col-span-12 lg:col-span-8">
-            <div className="card rounded-2xl border bg-white dark:bg-slate-900 dark:border-slate-700 shadow-sm h-full flex flex-col">
+            <div ref={threatRef} className="card rounded-2xl border bg-white dark:bg-slate-900 dark:border-slate-700 shadow-sm h-full flex flex-col">
               <div className="card-header px-4 pt-4 pb-2">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="card-title text-base font-semibold flex items-center gap-2 mb-2">🔥 <span>Threat Encounter</span></div>
+                  <div className="card-title text-base font-semibold flex items-center gap-2 mb-2">🔥 <span>Threat Analysis</span></div>
                   {!completed && activeThreat && (
                     <div className="flex flex-wrap items-center gap-2 ml-auto text-xs sm:text-sm">
 
@@ -639,8 +765,9 @@ export default function App() {
           </div>
 
           {/* Security Requirements Panel */}
+
           <div className="col-span-12 lg:col-span-4">
-            <div className="card rounded-2xl border bg-white dark:bg-slate-900 dark:border-slate-700 shadow-sm h-full flex flex-col">
+            <div ref={reqRef} className="card rounded-2xl border bg-white dark:bg-slate-900 dark:border-slate-700 shadow-sm h-full flex flex-col">
               <div className="card-header px-4 pt-4 pb-2">
                 <div className="card-title text-base font-semibold">Security Requirements</div>
               </div>
@@ -650,22 +777,9 @@ export default function App() {
                 ) : (
                   <div className="space-y-4">
                     {getAnsweredThreats(seenThreats, playerAnswers).map((t, idx) => (
-                      <div key={t.id} className="border-b pb-3 mb-3 last:border-b-0 last:pb-0 last:mb-0">
-                        <div className="font-semibold mb-1">{t.text}</div>
+                      <div key={t.id} className="border-b pb-2 mb-2 last:border-b-0 last:pb-0 last:mb-0">
+                        <div className="font-semibold mb-0">{categoryBadge(t.cat)} - <span className="text-sky-700 dark:text-sky-400">{t.mitigation}</span></div>
                         <div className="flex flex-col gap-1">
-                          <div>
-                            <span className="font-medium">Your Answer:</span>{" "}
-                            <span className={t.userAnswer === t.mitigation ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400"}>
-                              {t.userAnswer}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="font-medium">Security Requirement:</span>{" "}
-                            <span className="text-sky-700 dark:text-sky-400">{t.mitigation}</span>
-                          </div>
-                          <div>
-                            {categoryBadge(t.cat)}
-                          </div>
                         </div>
                       </div>
                     ))}
@@ -704,6 +818,46 @@ export default function App() {
             </div>
           </div>
         </div>
+        {/* Onboarding tour */}
+        {tourStep === 1 && (
+          <TourOverlay
+            step={1}
+            targetRef={dataFlowRef}
+            targetAnchor="bottom-middle"
+            tooltipAnchor="top-middle"
+            title="Data Flow"
+            body="This is your proposed data flow and the components in your app. We use it as the base to ensure every part gets coverage."
+            onNext={() => setTourStep(2)}
+            onSkip={() => setTourStep(0)}
+          />
+        )}
+
+        {tourStep === 2 && (
+          <TourOverlay
+            step={2}
+            targetRef={threatRef}
+            targetAnchor="top-middle"
+            tooltipAnchor="bottom-middle"
+            title="Threat Analysis"
+            body="While reviewing each component, we examine WADDLE threats and decide which mitigation is required."
+            onNext={() => setTourStep(3)}
+            onSkip={() => setTourStep(0)}
+          />
+        )}
+
+        {tourStep === 3 && (
+          <TourOverlay
+            step={3}
+            targetRef={reqRef}
+            targetAnchor="left-middle"
+            tooltipAnchor="right-middle"
+            title="Security Requirements"
+            body="After answering threats, we build a list of actionable security requirements to help secure the ducks new app."
+            onNext={() => setTourStep(0)}
+            onSkip={() => setTourStep(0)}
+          />
+        )}
+
       </div>
     </div>
   );
