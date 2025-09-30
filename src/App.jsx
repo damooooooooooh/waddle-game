@@ -201,6 +201,7 @@ export default function App() {
 
   const progressPct = (pos / (NODES.length - 1)) * 100;
   const activeCat = activeThreat ? CATEGORIES[activeThreat.cat] : null;
+  const blockedTimeoutRef = useRef(null);
 
   // Create a fresh session on first load
   useEffect(() => {
@@ -262,17 +263,24 @@ export default function App() {
 
   function attemptForward() {
     if (!canAdvanceNow()) {
+      // show + auto-hide, but cancel any previous timer first
+      if (blockedTimeoutRef.current) clearTimeout(blockedTimeoutRef.current);
       setBlockedNotice(true);
-      setTimeout(() => setBlockedNotice(false), 1200);
+      blockedTimeoutRef.current = setTimeout(() => {
+        setBlockedNotice(false);
+        blockedTimeoutRef.current = null;
+      }, 1200);
       return;
     }
+    clearBlockedNotice();
     move(1);
   }
 
   function move(delta) {
+    clearBlockedNotice();
     setAnswered(null);
     setHintUsed(false);
-    setPos((p) => Math.max(0, Math.min(NODES.length - 1, p + delta)));
+    setPos(p => Math.max(0, Math.min(NODES.length - 1, p + delta)));
   }
 
   function goTo(targetIndex) {
@@ -302,17 +310,22 @@ export default function App() {
     setAnswered(isCorrect ? "correct" : "wrong");
     setSeenThreats(new Set([...seenThreats, activeThreat.id]));
     setPlayerAnswers(prev => ({ ...prev, [activeThreat.id]: ans }));
+
     if (isCorrect) {
-      setScore((s) => s + (hintUsed ? 5 : 10));
+      clearBlockedNotice();            // <- cancel any stale warning
+      setScore(s => s + (hintUsed ? 5 : 10));
       setTimeout(() => attemptForward(), 700);
     } else {
-      setLives((l) => l - 1);
+      setLives(l => l - 1);
     }
   }
+
 
   //
 
   function restart() {
+    clearBlockedNotice();
+
     // Log current session if it hasn't been saved yet (e.g., user resets mid-run)
     if (!savedThisRun) {
       const endedAt = new Date().toISOString();
@@ -336,6 +349,14 @@ export default function App() {
 
     // Start a brand-new session id + timestamp
     startNewSession();
+  }
+
+  function clearBlockedNotice() {
+    setBlockedNotice(false);
+    if (blockedTimeoutRef.current) {
+      clearTimeout(blockedTimeoutRef.current);
+      blockedTimeoutRef.current = null;
+    }
   }
 
   const scores = loadScores().slice(0, 5);
@@ -689,7 +710,7 @@ export default function App() {
                       </div>
 
                       {/* Gate notice */}
-                      {blockedNotice && (
+                      {blockedNotice && answered !== "correct" && (
                         <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-900/20 dark:text-amber-200 flex items-center gap-2">⚠️ Answer the question before moving forward.</div>
                       )}
 
