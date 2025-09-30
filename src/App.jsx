@@ -203,6 +203,10 @@ export default function App() {
   const activeCat = activeThreat ? CATEGORIES[activeThreat.cat] : null;
   const blockedTimeoutRef = useRef(null);
 
+  // map of nodeId -> threat object assigned for this run
+  const [nodeThreats, setNodeThreats] = useState({});
+
+
   // Create a fresh session on first load
   useEffect(() => {
     startNewSession();
@@ -229,10 +233,23 @@ export default function App() {
   useEffect(() => {
     if (completed) return;
     const node = NODES[pos];
+
+    // If this node already has a threat assigned, reuse it
+    if (nodeThreats[node.id]) {
+      setActiveThreat(nodeThreats[node.id]);
+      return;
+    }
+
+    // Otherwise pick one and store it
     const t = randomThreatForNode(node.id, seenThreats);
-    if (t) setActiveThreat({ ...t, shuffled: shuffle(t.choices) });
-    else setActiveThreat(null);
-  }, [pos]);
+    if (t) {
+      const threatWithChoices = { ...t, shuffled: shuffle(t.choices) };
+      setNodeThreats(prev => ({ ...prev, [node.id]: threatWithChoices }));
+      setActiveThreat(threatWithChoices);
+    } else {
+      setActiveThreat(null);
+    }
+  }, [pos, completed, nodeThreats, seenThreats]);
 
   useEffect(() => {
     if (lives <= 0) setCompleted(true);
@@ -256,9 +273,8 @@ export default function App() {
   }
 
   function canAdvanceNow() {
-    // Only gate when there's a question on the current node
     if (!activeThreat) return true;
-    return answered === "correct";
+    return answered !== null;   // user must answer, but doesn’t have to be correct
   }
 
   function attemptForward() {
@@ -278,9 +294,17 @@ export default function App() {
 
   function move(delta) {
     clearBlockedNotice();
-    setAnswered(null);
+    const newPos = Math.max(0, Math.min(NODES.length - 1, pos + delta));
+    setPos(newPos);
+
+    const node = NODES[newPos];
+    const t = nodeThreats[node.id];
+    if (t && playerAnswers[t.id]) {
+      setAnswered(playerAnswers[t.id] === t.mitigation ? "correct" : "wrong");
+    } else {
+      setAnswered(null);
+    }
     setHintUsed(false);
-    setPos(p => Math.max(0, Math.min(NODES.length - 1, p + delta)));
   }
 
   function goTo(targetIndex) {
@@ -289,9 +313,18 @@ export default function App() {
       setTimeout(() => setBlockedNotice(false), 1200);
       return;
     }
-    setAnswered(null);
+    clearBlockedNotice();
+    const newPos = Math.max(0, Math.min(NODES.length - 1, targetIndex));
+    setPos(newPos);
+
+    const node = NODES[newPos];
+    const t = nodeThreats[node.id];
+    if (t && playerAnswers[t.id]) {
+      setAnswered(playerAnswers[t.id] === t.mitigation ? "correct" : "wrong");
+    } else {
+      setAnswered(null);
+    }
     setHintUsed(false);
-    setPos(() => Math.max(0, Math.min(NODES.length - 1, targetIndex)));
   }
 
   // Add this helper above the App function:
