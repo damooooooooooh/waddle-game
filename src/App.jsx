@@ -19,103 +19,212 @@ const CATEGORIES = {
 };
 
 const THREATS = [
+  // --- Mobile App (OWASP Mobile Top 10) ---
   {
-    id: "w-phishing",
+    id: "w-mobile-auth",
     cat: "W",
-    nodes: ["client", "api"],
-    text: "Attacker steals session cookie and replays it to impersonate a user.",
-    mitigation: "Bind sessions to device + rotate on risk (e.g., token binding, short TTL)",
+    nodes: ["client"],
+    text: "Weak authentication on the mobile app allows attacker to brute-force or bypass login.",
+    mitigation: "Enforce strong authentication + device binding + MFA",
     choices: [
-      "Increase log retention to 2 years",
-      "Disable 2FA to reduce friction",
-      "Bind sessions to device + rotate on risk (e.g., token binding, short TTL)",
-      "Use a bigger instance size",
+      "Store PIN in plaintext",
+      "Disable lockout to reduce friction",
+      "Enforce strong authentication + device binding + MFA",
+      "Hardcode API keys in the app",
     ],
-    hint: "Make stolen tokens useless elsewhere or after reuse.",
+    hint: "Authentication should be resilient to brute force and tied to device identity.",
   },
   {
-    id: "a-tamper",
+    id: "a-mobile-tamper",
     cat: "A",
-    nodes: ["client", "api", "service"],
-    text: "JSON payload modified in transit to change accountId.",
-    mitigation: "Use TLS + server-side integrity checks (sign/verify critical fields)",
+    nodes: ["client"],
+    text: "User reverse-engineers the mobile app and tampers with business logic (e.g., disables payment checks).",
+    mitigation: "Enable integrity verification + code obfuscation + server-side validation",
     choices: [
-      "Rely on client-side validation",
-      "Use TLS + server-side integrity checks (sign/verify critical fields)",
-      "More verbose logging only",
-      "Add a loading spinner",
+      "Trust client-side validation",
+      "Hide logic in JavaScript",
+      "Enable integrity verification + code obfuscation + server-side validation",
+      "Use a bigger phone storage",
     ],
-    hint: "Integrity/authenticity of fields is key.",
+    hint: "Never trust the client — validate logic server-side.",
+  },
+
+  // --- API Gateway (OWASP API Top 10) ---
+  {
+    id: "a-api-massassign",
+    cat: "A",
+    nodes: ["api"],
+    text: "Attacker adds unexpected fields (e.g. `isAdmin:true`) to an API request to change properties they shouldn't (mass assignment).",
+    mitigation: "Enforce strict schema validation and whitelist allowed fields on the server; never bind raw request fields directly to models.",
+    choices: [
+      "Trust every JSON field from the client and bind to the model",
+      "Enforce strict schema validation and whitelist allowed fields on the server; never bind raw request fields directly to models",
+      "Allow extra fields for flexibility and handle them later",
+      "Rely on client-side validation to prevent extra fields"
+    ],
+    hint: "Whitelist accepted fields server-side (schema validation) and map inputs explicitly — don’t blindly apply incoming JSON to your models.",
   },
   {
-    id: "d1-dos",
+    id: "d1-api-dos",
     cat: "D1",
-    nodes: ["api", "service"],
-    text: "Botnet floods login endpoint causing resource exhaustion.",
-    mitigation: "Rate limiting + exponential backoff + upstream WAF/captcha on anomalies",
+    nodes: ["api"],
+    text: "Botnet floods the login API causing resource exhaustion.",
+    mitigation: "Rate limiting + anomaly detection + upstream WAF",
     choices: [
-      "Store passwords in plaintext for speed",
-      "Rate limiting + exponential backoff + upstream WAF/captcha on anomalies",
-      "Turn off logs",
-      "Use client-side hashing only",
+      "Turn off logs to save resources",
+      "Allow unlimited requests for UX",
+      "Rate limiting + anomaly detection + upstream WAF",
+      "Just scale servers infinitely",
     ],
-    hint: "Protect capacity at the edge and slow down abuse.",
+    hint: "Protect at the edge and slow down abusive requests.",
   },
+
+  // --- Service (OWASP API Top 10) ---
   {
-    id: "d2-repudiation",
+    id: "d2-service-repudiation",
     cat: "D2",
-    nodes: ["service", "logs"],
-    text: "User denies making a funds transfer; audit trail is incomplete.",
-    mitigation: "Create tamper-evident audit logs with user/time/action + request signature",
+    nodes: ["service"],
+    text: "User denies performing a funds transfer; audit trail is incomplete.",
+    mitigation: "Implement tamper-evident logs with user/time/action signatures",
     choices: [
-      "Delete old logs to save space",
-      "Create tamper-evident audit logs with user/time/action + request signature",
-      "Allow shared accounts",
-      "Cache everything",
+      "Delete old logs after a week",
+      "Implement tamper-evident logs with user/time/action signatures",
+      "Allow shared user accounts",
+      "Cache everything and skip logging",
     ],
-    hint: "Tie action to actor with verifiable evidence.",
+    hint: "Tie each action to an actor with non-repudiable evidence.",
   },
   {
-    id: "l-info",
-    cat: "L",
-    nodes: ["db", "logs", "third"],
-    text: "PII appears in logs from error stack traces.",
-    mitigation: "Redact PII at source + structured logging + data retention policy",
-    choices: [
-      "Email logs to the team",
-      "Redact PII at source + structured logging + data retention policy",
-      "Use HTTP instead of HTTPS",
-      "Return full stack traces to clients",
-    ],
-    hint: "Collect only what's needed; redact early.",
-  },
-  {
-    id: "e-admin",
+    id: "e-service-privilege",
     cat: "E",
-    nodes: ["service", "db"],
-    text: "Normal user calls admin-only endpoint via crafted request.",
-    mitigation: "Enforce server-side authorization (ABAC/RBAC) + deny-by-default",
+    nodes: ["service"],
+    text: "Normal user escalates privileges by exploiting insecure direct object references (IDOR).",
+    mitigation: "Enforce robust server-side authorization (ABAC/RBAC)",
     choices: [
       "Hide the admin button in the UI",
-      "Enforce server-side authorization (ABAC/RBAC) + deny-by-default",
-      "Rely on HTTP referer",
-      "Only check JWT 'role' on the client",
+      "Enforce robust server-side authorization (ABAC/RBAC)",
+      "Rely on HTTP referer header",
+      "Only check roles client-side",
     ],
-    hint: "AuthN says who; AuthZ says what they can do.",
+    hint: "AuthN says who you are; AuthZ says what you can do.",
+  },
+
+  // --- Database (OWASP Web Top 10) ---
+  {
+    id: "l-db-encryption",
+    cat: "L",
+    nodes: ["db"],
+    text: "Sensitive data is stored in the database without encryption.",
+    mitigation: "Encrypt sensitive data at rest with proper key management",
+    choices: [
+      "Store passwords in plaintext for speed",
+      "Encrypt sensitive data at rest with proper key management",
+      "Rely on obscurity instead of encryption",
+      "Only encrypt on the client device",
+    ],
+    hint: "If the DB is compromised, data should remain unreadable.",
   },
   {
-    id: "l-3p-exfil",
-    cat: "L",
-    nodes: ["third"], // only 3rd Party
-    text: "Compromised 3rd-party SDK silently exfiltrates PII to an attacker-controlled domain.",
-    mitigation: "Vet and scope 3rd-party SDKs + pin versions/checksums + egress allowlist (deny unknown domains)",
+    id: "e-db-privilege",
+    cat: "E",
+    nodes: ["db"],
+    text: "Application connects to the database using an over-privileged account.",
+    mitigation: "Use least-privilege DB accounts with deny-by-default",
     choices: [
-      "Rely on the SDK’s marketing site",
-      "Turn off TLS to simplify inspection",
-      "Vet and scope 3rd-party SDKs + pin versions/checksums + egress allowlist (deny unknown domains)",
-      "Log everything including PII to debug faster"
+      "Use the root account for simplicity",
+      "Use least-privilege DB accounts with deny-by-default",
+      "Share DB credentials across all apps",
+      "Skip authentication on localhost",
     ],
-    hint: "Treat dependencies as untrusted: least privilege, integrity pinning, and controlled outbound traffic."
+    hint: "Compromised app accounts should not mean full DB compromise.",
+  },
+
+  // --- Logs (OWASP Web Top 10) ---
+  {
+    id: "l-logs-pii",
+    cat: "L",
+    nodes: ["logs"],
+    text: "PII is exposed in error logs and stack traces.",
+    mitigation: "Redact PII + structured logging + retention controls",
+    choices: [
+      "Email logs with full stack traces to devs",
+      "Redact PII + structured logging + retention controls",
+      "Log everything for debugging",
+      "Return stack traces to the client",
+    ],
+    hint: "Log what’s useful, but scrub sensitive data early.",
+  },
+  {
+    id: "a-logs-tamper",
+    cat: "A",
+    nodes: ["logs"],
+    text: "Attacker tampers with logs to erase malicious activity.",
+    mitigation: "Centralize logs in tamper-evident, append-only storage",
+    choices: [
+      "Delete logs weekly to save space",
+      "Centralize logs in tamper-evident, append-only storage",
+      "Allow manual editing of logs",
+      "Keep logs only on the server disk",
+    ],
+    hint: "Logs are only useful if integrity is guaranteed.",
+  },
+
+  // --- 3rd Party (OWASP Web Top 10) ---
+  {
+    id: "l-3rd-exfil",
+    cat: "L",
+    nodes: ["third"],
+    text: "Compromised 3rd-party SDK silently exfiltrates PII.",
+    mitigation: "Vet and scope SDKs, pin versions, enforce egress allowlists",
+    choices: [
+      "Trust all vendors implicitly",
+      "Vet and scope SDKs, pin versions, enforce egress allowlists",
+      "Disable TLS to simplify inspection",
+      "Log all data including PII to debug faster",
+    ],
+    hint: "Dependencies must be treated as untrusted and scoped tightly.",
+  },
+  {
+    id: "a-3rd-supplychain",
+    cat: "A", // Alteration / Tampering (OWASP A08: Software & Data Integrity Failures)
+    nodes: ["third"],
+    text: "A malicious update to a 3rd-party SDK injects code into your app (supply-chain compromise).",
+    mitigation: "Pin and verify dependencies (checksums/signatures), require provenance (e.g., SLSA), review updates via approval",
+    choices: [
+      "Auto-update to latest for speed",
+      "Trust vendor packages implicitly",
+      "Pin and verify dependencies (checksums/signatures), require provenance (e.g., SLSA), review updates via approval",
+      "Disable TLS so you can inspect traffic",
+    ],
+    hint: "Integrity and provenance of dependencies matter—lock versions, verify artifacts, and gate updates.",
+  },
+  {
+    id: "w-3rd-webhook-spoof",
+    cat: "W", // Wrong Identity / Spoofing (maps to API authn of integrations)
+    nodes: ["third"],
+    text: "Attacker spoofs a 3rd-party webhook and triggers privileged actions in your system.",
+    mitigation: "Verify webhook signatures (HMAC/shared secret), enforce replay protection, and least-privilege endpoints",
+    choices: [
+      "Trust source IPs from DNS lookup",
+      "Accept any JSON that looks right",
+      "Verify webhook signatures (HMAC/shared secret), enforce replay protection, and least-privilege endpoints",
+      "Rely on HTTP referer header",
+    ],
+    hint: "Authenticate integrations like users: strong verification and replay protection.",
+  },  
+  {
+    id: "w-db-admin-spoof",
+    cat: "W",                 // Wrong Identity / Spoofing
+    nodes: ["db"],
+    text: "Attacker spoofs or compromises an admin identity (stolen keys or credentials) and performs privileged reads/changes in the database.",
+    mitigation: "Require strong, multi-factor admin authentication (hardware-backed or MFA), use short-lived admin credentials / managed identities, enforce least-privilege IAM roles, rotate/rotate keys, and alert on high-risk admin actions.",
+    choices: [
+      "Store admin credentials in code for convenience",
+      "Require strong, multi-factor admin authentication (hardware-backed or MFA), use short-lived admin credentials / managed identities, enforce least-privilege IAM roles, rotate keys, and alert on admin actions",
+      "Give every app the same admin account to simplify ops",
+      "Rely on IP allowlists only and never rotate keys"
+    ],
+    hint: "Protect and rotate admin credentials, and require strong, multi-factor auth for any privileged DB operations."
   },
 ];
 
