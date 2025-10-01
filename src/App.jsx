@@ -103,6 +103,20 @@ const THREATS = [
     ],
     hint: "AuthN says who; AuthZ says what they can do.",
   },
+  {
+    id: "l-3p-exfil",
+    cat: "L",
+    nodes: ["third"], // only 3rd Party
+    text: "Compromised 3rd-party SDK silently exfiltrates PII to an attacker-controlled domain.",
+    mitigation: "Vet and scope 3rd-party SDKs + pin versions/checksums + egress allowlist (deny unknown domains)",
+    choices: [
+      "Rely on the SDK’s marketing site",
+      "Turn off TLS to simplify inspection",
+      "Vet and scope 3rd-party SDKs + pin versions/checksums + egress allowlist (deny unknown domains)",
+      "Log everything including PII to debug faster"
+    ],
+    hint: "Treat dependencies as untrusted: least privilege, integrity pinning, and controlled outbound traffic."
+  },
 ];
 
 const Badge = ({ className = "", children }) => (
@@ -114,6 +128,16 @@ function categoryBadge(catKey) {
   if (!cat) return null;
   const letter = catKey.replace("D1", "D").replace("D2", "D");
   return <Badge className={`${cat.color} text-white shadow`}>{letter} · {cat.name} ({cat.stride})</Badge>;
+}
+
+function categoryNameBadge(catKey) {
+  const cat = CATEGORIES[catKey];
+  if (!cat) return null;
+  return (
+    <Badge className={`${cat.color} text-white shadow`}>
+      {cat.name}
+    </Badge>
+  );
 }
 
 function shuffle(arr) {
@@ -253,7 +277,6 @@ export default function App() {
 
   useEffect(() => {
     if (lives <= 0) setCompleted(true);
-    if (pos >= NODES.length - 1) setCompleted(true);
   }, [lives, pos]);
 
   // Save score + session at end of run (once)
@@ -289,6 +312,12 @@ export default function App() {
       return;
     }
     clearBlockedNotice();
+    const lastIndex = NODES.length - 1;
+    if (pos === lastIndex) {
+      // at final node; they’ve answered (canAdvanceNow() true) → finish
+      setCompleted(true);
+      return;
+    }
     move(1);
   }
 
@@ -353,8 +382,16 @@ export default function App() {
     }
   }
 
+  function clearSessions() {
+    localStorage.removeItem(LS_SESSIONS);
+    localStorage.removeItem(LS_SCORES);
+  }
 
-  //
+  function clearAllData() {
+    localStorage.removeItem(LS_SESSIONS);
+    localStorage.removeItem(LS_SCORES);
+    localStorage.removeItem(LS_PLAYER);
+  }
 
   function restart() {
     clearBlockedNotice();
@@ -380,6 +417,10 @@ export default function App() {
     setPlayerName("");
     localStorage.removeItem(LS_PLAYER);
 
+    // 🔑 Reset per-run threat/answer state
+    setPlayerAnswers({});
+    setNodeThreats({});
+
     // Start a brand-new session id + timestamp
     startNewSession();
   }
@@ -392,7 +433,7 @@ export default function App() {
     }
   }
 
-  const scores = loadScores().slice(0, 5);
+  const scores = loadScores().slice(0, 3);
 
   function TourOverlay({
     step,
@@ -526,7 +567,7 @@ export default function App() {
             <span className="inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium bg-slate-100 text-slate-800 border border-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700 min-h-15 min-w-15 min-h-[3.75rem] min-w-[6rem]">Player: {playerName}</span>
             <span className="inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium bg-slate-100 text-slate-800 border border-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700 min-h-15 min-w-15 min-h-[3.75rem] min-w-[3.75rem]">Score: {score}</span>
             <span className="inline-flex flex-col items-center justify-center rounded-md px-3 py-2 text-sm font-medium bg-slate-100 text-slate-800 border border-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700 min-h-15 min-w-30 min-h-[3.75rem] min-w-[6rem]">
-              <span className="text-xs opacity-80">Lives</span>
+              <span className="text-xs opacity-80">Lives:</span>
               <span className="text-base leading-none">{"🦆".repeat(lives) || "—"}</span>
             </span>
             <button onClick={restart} className="btn inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition border bg-white text-slate-800 border-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700 dark:hover:bg-slate-700 min-h-15 min-w-15 min-h-[3.75rem] min-w-[3.75rem]">⟳ Reset</button>
@@ -767,16 +808,16 @@ export default function App() {
                   )
                 ) : (
                   <div className="space-y-4">
-                    <h2 className="text-xl font-semibold">Run Complete</h2>
+                    <h2 className="text-xl font-semibold">Game Complete</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-slate-700 dark:text-slate-300 items-stretch">
-                      <div className="rounded-lg border bg-white dark:bg-slate-800 dark:border-slate-700 p-3 h-full min-h-[110px] flex flex-col justify-between"><div className="text-xs">Score</div><div className="text-2xl font-bold">{score}</div></div>
-                      <div className="rounded-lg border bg-white dark:bg-slate-800 dark:border-slate-700 p-3 h-full min-h-[110px] flex flex-col justify-between"><div className="text-xs">Lives Left</div><div className="text-2xl font-bold">{lives}</div></div>
-                      <div className="rounded-lg border bg-white dark:bg-slate-800 dark:border-slate-700 p-3 h-full min-h-[110px] flex flex-col justify-between"><div className="text-xs">Hints Used</div><div className="text-2xl font-bold">{hintUsed ? 1 : 0}</div></div>
+                      <div className="rounded-lg border bg-white dark:bg-slate-800 dark:border-slate-700 p-3 h-full min-h-[60px] flex flex-col justify-between"><div className="text-xs">Score</div><div className="text-2xl font-bold">{score}</div></div>
+                      <div className="rounded-lg border bg-white dark:bg-slate-800 dark:border-slate-700 p-3 h-full min-h-[60px] flex flex-col justify-between"><div className="text-xs">Lives Left</div><div className="text-2xl font-bold">{lives}</div></div>
+                      <div className="rounded-lg border bg-white dark:bg-slate-800 dark:border-slate-700 p-3 h-full min-h-[60px] flex flex-col justify-between"><div className="text-xs">Hints Used</div><div className="text-2xl font-bold">{hintUsed ? 1 : 0}</div></div>
                     </div>
 
                     {/* Leaderboard */}
                     <div className="mt-4">
-                      <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-2">Leaderboard (Top 5)</h3>
+                      <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-2">Leaderboard (Top 3)</h3>
                       {scores.length ? (
                         <div className="overflow-x-auto">
                           <table className="w-full text-sm">
@@ -806,11 +847,43 @@ export default function App() {
                         <p className="text-sm text-slate-500 dark:text-slate-400">No scores yet. Play a round!</p>
                       )}
                     </div>
-
-                    <p className="text-slate-600 dark:text-slate-300">Play again or customize the threat bank to match your app. Edit <code>THREATS</code> & <code>NODES</code> in this file.</p>
                     <div className="flex gap-2">
-                      <button className="btn inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition border bg-white text-slate-800 border-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700 dark:hover:bg-slate-700" onClick={restart}>⟳ Play Again</button>
-                      <button className="btn inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition border bg-white text-slate-800 border-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700 dark:hover:bg-slate-700" onClick={exportSessionsCSV}>⬇️ Export Sessions</button>
+                      <button
+                        className="btn inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition border bg-white text-slate-800 border-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700 dark:hover:bg-slate-700"
+                        onClick={restart}
+                      >
+                        ⟳ Play Again
+                      </button>
+
+                      <button
+                        className="btn inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition border bg-white text-slate-800 border-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700 dark:hover:bg-slate-700"
+                        onClick={exportSessionsCSV}
+                      >
+                        ⬇️ Export Sessions
+                      </button>
+
+                      <button
+                        className="btn inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition border bg-red-50 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800 dark:hover:bg-red-900/50"
+                        onClick={() => {
+                          if (window.confirm("⚠️ This will wipe all sessions and leaderboard scores locally. Are you sure?")) {
+                            clearAllData();
+                            setPlayerName("");
+                            setShowWelcome(true);     // bring back the name prompt
+                            setPlayerAnswers({});
+                            setNodeThreats({});
+                            setSeenThreats(new Set());
+                            setScore(0);
+                            setLives(3);
+                            setAnswered(null);
+                            setActiveThreat(null);
+                            setCompleted(false);
+                            alert("All sessions and leaderboard scores have been cleared.");
+                            window.location.reload();
+                          }
+                        }}
+                      >
+                        🗑️ Reset Sessions & Scores
+                      </button>
                     </div>
                   </div>
                 )}
@@ -822,24 +895,48 @@ export default function App() {
 
           <div className="col-span-12 lg:col-span-4">
             <div ref={reqRef} className="card rounded-2xl border bg-white dark:bg-slate-900 dark:border-slate-700 shadow-sm h-full flex flex-col">
-              <div className="card-header px-4 pt-4 pb-2">
+              <div className="card-header px-4 pt-4 pb-0">
                 <div className="card-title text-base font-semibold">Security Requirements</div>
               </div>
+
               <div className="card-content p-4 pt-2 text-sm flex-1">
                 {getAnsweredThreats(seenThreats, playerAnswers).length === 0 ? (
-                  <div className="text-slate-500 dark:text-slate-400">No requirements yet. Answer threats to build your list.</div>
+                  <div className="text-slate-500 dark:text-slate-400">
+                    No requirements yet. Answer threats to build your list.
+                  </div>
                 ) : (
-                  <div className="space-y-4">
-                    {getAnsweredThreats(seenThreats, playerAnswers).map((t, idx) => (
-                      <div key={t.id} className="border-b pb-2 mb-2 last:border-b-0 last:pb-0 last:mb-0">
-                        <div className="font-semibold mb-0">{categoryBadge(t.cat)} - <span className="text-sky-700 dark:text-sky-400">{t.mitigation}</span></div>
-                        <div className="flex flex-col gap-1">
+                  <div className="space-y-3">
+                    {getAnsweredThreats(seenThreats, playerAnswers).map((t) => {
+                      const gotItRight = t.userAnswer === t.mitigation;
+                      // Find which node this threat belongs to (relative to where it was answered)
+                      const nodeLabel = NODES.find(n => t.nodes.includes(n.id))?.label ?? "Unknown Node";
+
+                      return (
+                        <div
+                          key={t.id}
+                          className="border-b pb-2 mb-2 last:border-b-0 last:pb-0 last:mb-0"
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            {gotItRight ? (
+                              <span className="text-xs text-emerald-600 dark:text-emerald-400">✔️</span>
+                            ) : (
+                              <span className="text-red-600 dark:text-red-400">❌</span>
+                            )}
+                            <span className="font-medium text-sky-700 dark:text-sky-400">
+                              {nodeLabel} {categoryNameBadge(t.cat)}
+                            </span>
+                          </div>
+                          <div className="text-slate-500 dark:text-slate-400">
+                            {t.mitigation}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
+
+
             </div>
           </div>
 
