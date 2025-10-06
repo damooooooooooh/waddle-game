@@ -58,7 +58,7 @@ const THREATS = [
     mitigation: "Enforce strict schema validation and whitelist allowed fields on the server; never bind raw request fields directly to models.",
     choices: [
       "Trust every JSON field from the client and bind to the model",
-      "Enforce strict schema validation and whitelist allowed fields on the server; never bind raw request fields directly to models",
+      "Enforce strict schema validation and whitelist allowed fields on the server; never bind raw request fields directly to models.",
       "Allow extra fields for flexibility and handle them later",
       "Rely on client-side validation to prevent extra fields"
     ],
@@ -220,7 +220,7 @@ const THREATS = [
     mitigation: "Require strong, multi-factor admin authentication (hardware-backed or MFA), use short-lived admin credentials / managed identities, enforce least-privilege IAM roles, rotate/rotate keys, and alert on high-risk admin actions.",
     choices: [
       "Store admin credentials in code for convenience",
-      "Require strong, multi-factor admin authentication (hardware-backed or MFA), use short-lived admin credentials / managed identities, enforce least-privilege IAM roles, rotate keys, and alert on admin actions",
+      "Require strong, multi-factor admin authentication (hardware-backed or MFA), use short-lived admin credentials / managed identities, enforce least-privilege IAM roles, rotate/rotate keys, and alert on high-risk admin actions.",
       "Give every app the same admin account to simplify ops",
       "Rely on IP allowlists only and never rotate keys"
     ],
