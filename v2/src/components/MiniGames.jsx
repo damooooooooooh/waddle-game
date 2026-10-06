@@ -7,7 +7,7 @@ const GAMES = [
     title: "Jailbreak the Bot",
     blurb: "Try to talk a guarded chatbot into leaking its secret, then pick the defence that would have stopped you.",
     risks: ["LLM01", "LLM07"],
-    ready: false,
+    ready: true,
   },
   {
     id: "spot",
@@ -27,7 +27,7 @@ const GAMES = [
   },
 ];
 
-export default function MiniGames({ onBack }) {
+export default function MiniGames({ onBack, onPlay }) {
   return (
     <div className="space-y-4 pop-in">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -47,7 +47,7 @@ export default function MiniGames({ onBack }) {
             <div className="flex flex-wrap gap-1">
               {g.risks.map(r => <span key={r} className="chip">{r}</span>)}
             </div>
-            <button className="btn btn-primary mt-2" disabled={!g.ready}>
+            <button className="btn btn-primary mt-2" disabled={!g.ready} onClick={() => onPlay(g.id)}>
               {g.ready ? "▶ Play" : "Coming soon"}
             </button>
           </div>

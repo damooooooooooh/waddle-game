@@ -15,6 +15,7 @@ import Requirements from "./components/Requirements";
 import Results from "./components/Results";
 import FxLayer from "./components/FxLayer";
 import MiniGames from "./components/MiniGames";
+import Jailbreak from "./components/Jailbreak";
 import { sfx, isMuted, setMuted } from "./lib/sfx";
 import { confetti, celebrate, shake } from "./lib/fx";
 
@@ -311,7 +312,8 @@ export default function App() {
 
         {showWelcome && <Welcome playerName={playerName} setPlayerName={setPlayerName} onStart={startGame} />}
 
-        {view === "minigames" && <MiniGames onBack={() => setView("game")} />}
+        {view === "minigames" && <MiniGames onBack={() => setView("game")} onPlay={setView} />}
+        {view === "jailbreak" && <Jailbreak onExit={() => setView("minigames")} />}
 
         {/* Hidden rather than unmounted so the run's state and tour refs survive a trip to the arcade */}
         <div className={view === "game" ? "space-y-4" : "hidden"}>
