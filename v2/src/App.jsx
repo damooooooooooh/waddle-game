@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { NODES } from "./data/nodes";
-import { CATEGORIES, CATEGORY_IDS } from "./data/categories";
+import { CATEGORY_IDS } from "./data/categories";
 import { THREATS } from "./data/threats";
 import { shuffle, pick } from "./lib/shuffle";
 import {
@@ -14,13 +14,13 @@ import QuestionCard from "./components/QuestionCard";
 import Requirements from "./components/Requirements";
 import Results from "./components/Results";
 import FxLayer from "./components/FxLayer";
-import MiniGames from "./components/MiniGames";
+import GameHub from "./components/GameHub";
 import Jailbreak from "./components/Jailbreak";
+import SpotVuln from "./components/SpotVuln";
+import Boss from "./components/Boss";
 import { sfx, isMuted, setMuted } from "./lib/sfx";
 import { confetti, celebrate, shake } from "./lib/fx";
-
-// 3 correct answers in a row = x2, 6 = x3
-const multiplierFor = (streak) => (streak >= 6 ? 3 : streak >= 3 ? 2 : 1);
+import { multiplierFor } from "./lib/scoring";
 
 const START_LIVES = 3;
 const POINTS_IDENTIFY = 5;
@@ -58,7 +58,7 @@ export default function App() {
   const [bestStreak, setBestStreak] = useState(0);
   const [shaking, setShaking] = useState(false);
   const [muted, setMutedState] = useState(isMuted);
-  const [view, setView] = useState("game"); // "game" | "minigames"
+  const [view, setView] = useState("hub"); // "hub" | "game" (the quest) | "jailbreak" | "spot" | "boss"
   const [completed, setCompleted] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
   const [playerName, setPlayerName] = useState(() => localStorage.getItem(LS_PLAYER) || "");
@@ -240,15 +240,36 @@ export default function App() {
 
   // ---- lifecycle ----
   function startGame() {
-    localStorage.setItem(LS_PLAYER, playerName.trim());
     setShowWelcome(false);
     setTourStep(1);
   }
 
-  function restart() {
+  function setName(name) {
+    localStorage.setItem(LS_PLAYER, name);
+    setPlayerName(name);
+  }
+
+  // Games on the hub use "quest" for the original; its view id is "game"
+  function playGame(id) {
+    setView(id === "quest" ? "game" : id);
+  }
+
+  function goHub() {
+    setTourStep(0);
+    setView("hub");
+  }
+
+  // Shared kiosk: hand over to the next person with a clean slate
+  function switchPlayer() {
+    restart({ briefing: true });
+    setPlayerName("");
+    localStorage.removeItem(LS_PLAYER);
+  }
+
+  function restart({ briefing = false } = {}) {
     clearBlocked();
     // Log a run abandoned mid-way
-    if (!savedThisRun && !completed) {
+    if (!savedThisRun && !completed && (score > 0 || Object.keys(playerCats).length > 0)) {
       appendSession({
         sessionId, name: playerName || "Anonymous", score, lives, startedAt,
         endedAt: new Date().toISOString(), status: "reset",
@@ -267,9 +288,8 @@ export default function App() {
     setNodeThreats(buildRun());
     setCompleted(false);
     setSavedThisRun(false);
-    setShowWelcome(true);
-    setPlayerName("");
-    localStorage.removeItem(LS_PLAYER);
+    setShowWelcome(briefing);
+    setTourStep(0);
     setSessionId(newSessionId());
     setStartedAt(new Date().toISOString());
   }
@@ -282,69 +302,76 @@ export default function App() {
   }
 
   return (
-    <div className={`min-h-dvh w-full p-4 md:p-6 ${shaking ? "shake" : ""}`}>
+    <div className={`h-dvh w-full p-3 md:p-4 overflow-hidden ${shaking ? "shake" : ""}`}>
       <FxLayer />
-      <div className="mx-auto max-w-6xl space-y-4">
-        <header className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="flex items-center gap-3 text-2xl md:text-3xl font-extrabold tracking-tight">
+      <div className="mx-auto max-w-[1500px] h-full flex flex-col gap-3">
+        <header className="flex-none flex flex-wrap items-center justify-between gap-2">
+          <h1 className="flex items-center gap-3 text-xl md:text-2xl font-extrabold tracking-tight">
             <img
               src={`${import.meta.env.BASE_URL}favicon-512x512.png`}
               alt="WADDLE logo"
-              className="w-14 h-14"
+              className="w-10 h-10"
               style={{ filter: "drop-shadow(0 0 10px var(--cyan))" }}
             />
             <span className="neon-title">WADDLE · LLM Threat Modeling</span>
           </h1>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="stat"><small>Player</small><b className="text-base">{playerName || "—"}</b></span>
-            <span className="stat"><small>Score</small><b>{score}</b></span>
-            <span className={`stat ${multiplier > 1 ? "streak-hot" : ""}`} title="Correct answers in a row. 3 = x2, 6 = x3">
-              <small>Streak</small><b className="text-base">{streak > 0 ? `🔥 ${streak}` : "—"}{multiplier > 1 ? ` · x${multiplier}` : ""}</b>
-            </span>
-            <span className="stat"><small>Lives</small><b className="text-base">{"🦆".repeat(Math.max(lives, 0)) || "💀"}</b></span>
-            <button onClick={() => setView(view === "game" ? "minigames" : "game")} className="btn btn-primary">
-              {view === "game" ? "🎮 Mini-games" : "← Main game"}
-            </button>
+            {playerName && <span className="stat"><small>Player</small><b className="text-base">{playerName}</b></span>}
+            {view === "game" && (
+              <>
+                <span className="stat"><small>Score</small><b>{score}</b></span>
+                <span className={`stat ${multiplier > 1 ? "streak-hot" : ""}`} title="Correct answers in a row. 3 = x2, 6 = x3">
+                  <small>Streak</small><b className="text-base">{streak > 0 ? `🔥 ${streak}` : "—"}{multiplier > 1 ? ` · x${multiplier}` : ""}</b>
+                </span>
+                <span className="stat"><small>Lives</small><b className="text-base">{"🦆".repeat(Math.max(lives, 0)) || "💀"}</b></span>
+                <button onClick={() => restart()} className="btn">⟳ Reset</button>
+              </>
+            )}
+            {view !== "hub" && <button onClick={goHub} className="btn btn-primary">🎮 All games</button>}
             <button onClick={toggleMute} className="btn" aria-pressed={muted} aria-label={muted ? "Unmute sound" : "Mute sound"}>{muted ? "🔇" : "🔊"}</button>
-            <button onClick={restart} className="btn">⟳ Reset</button>
           </div>
         </header>
 
-        {showWelcome && <Welcome playerName={playerName} setPlayerName={setPlayerName} onStart={startGame} />}
+        {view === "hub" && (
+          <GameHub playerName={playerName} onSetName={setName} onSwitchPlayer={switchPlayer} onPlay={playGame} />
+        )}
+        {view === "game" && showWelcome && <Welcome playerName={playerName} onStart={startGame} onCancel={goHub} />}
+        {view === "jailbreak" && <Jailbreak playerName={playerName} onExit={goHub} />}
+        {view === "spot" && <SpotVuln playerName={playerName} onExit={goHub} />}
+        {view === "boss" && <Boss playerName={playerName} onExit={goHub} />}
 
-        {view === "minigames" && <MiniGames onBack={() => setView("game")} onPlay={setView} />}
-        {view === "jailbreak" && <Jailbreak onExit={() => setView("minigames")} />}
+        {/* Hidden rather than unmounted so a quest in progress survives a trip back to the hub */}
+        <div className={view === "game" ? "flex-1 min-h-0 flex flex-col gap-3" : "hidden"}>
+          <div className="flex-none"><PhaseStepper active={activePhase} allDone={completed} /></div>
 
-        {/* Hidden rather than unmounted so the run's state and tour refs survive a trip to the arcade */}
-        <div className={view === "game" ? "space-y-4" : "hidden"}>
-        <PhaseStepper active={activePhase} allDone={completed} />
-
-        <div className="grid grid-cols-12 gap-4 items-stretch">
-          <div className="col-span-12">
-            <div ref={dataFlowRef} className="panel p-4">
-              <div className="panel-title mb-1">Step 1 · Decompose: what are we working on?</div>
-              <NodeMap pos={pos} statusByNode={statusByNode} onGo={goTo} attackState={attackState} />
+          <div ref={dataFlowRef} className="panel flex-none px-4 py-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="panel-title">Step 1 · Decompose: what are we working on?</div>
+              <div className="text-xs" style={{ color: "var(--muted)" }}>Tip: ← → moves the duck · secure all {NODES.length} components to finish</div>
             </div>
+            <NodeMap pos={pos} statusByNode={statusByNode} onGo={goTo} attackState={attackState} />
           </div>
 
-          <div className="col-span-12 lg:col-span-8">
-            <div ref={threatRef} className="panel p-5 h-full">
+          <div className="flex-1 min-h-0 grid grid-cols-12 gap-3">
+            <div ref={threatRef} className="panel col-span-12 lg:col-span-8 p-4 min-h-0 flex flex-col">
               {!completed ? (
                 <>
-                  <QuestionCard
-                    key={threat.id}
-                    node={node}
-                    threat={threat}
-                    stage={stage}
-                    catAnswer={catAnswer}
-                    mitAnswer={mitAnswer}
-                    hintUsed={hintUsed}
-                    points={awarded[threat.id]}
-                    onCategory={chooseCategory}
-                    onMitigation={chooseMitigation}
-                    onHint={revealHint}
-                  />
-                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <div className="flex-1 min-h-0 overflow-y-auto thin-scroll pr-1">
+                    <QuestionCard
+                      key={threat.id}
+                      node={node}
+                      threat={threat}
+                      stage={stage}
+                      catAnswer={catAnswer}
+                      mitAnswer={mitAnswer}
+                      hintUsed={hintUsed}
+                      points={awarded[threat.id]}
+                      onCategory={chooseCategory}
+                      onMitigation={chooseMitigation}
+                      onHint={revealHint}
+                    />
+                  </div>
+                  <div className="flex-none pt-3 flex flex-wrap items-center gap-2">
                     <button className="btn" onClick={() => move(-1)} disabled={pos === 0}>↩ Back</button>
                     <button
                       className={`btn ${canAdvance ? "btn-primary nudge" : ""}`}
@@ -354,7 +381,7 @@ export default function App() {
                       {pos === NODES.length - 1 ? "🏁 Finish" : "Next node →"}
                     </button>
                     {blockedNotice && !canAdvance && (
-                      <span className="callout callout-warn py-1.5">⚠️ Finish this node's steps before moving on.</span>
+                      <span className="callout callout-warn py-1">⚠️ Finish this node's steps before moving on.</span>
                     )}
                   </div>
                 </>
@@ -369,31 +396,22 @@ export default function App() {
                   outOfLives={outOfLives}
                   verifyChecked={verifyChecked}
                   onToggleVerify={(id) => setVerifyChecked(prev => ({ ...prev, [id]: !prev[id] }))}
-                  onRestart={restart}
+                  onRestart={() => restart()}
                   onWipe={wipe}
                 />
               )}
             </div>
-          </div>
 
-          <div className="col-span-12 lg:col-span-4">
-            <div ref={reqRef} className="panel p-4 h-full text-sm">
-              <div className="panel-title mb-2">Security requirements</div>
-              <Requirements items={answeredItems} />
+            <div ref={reqRef} className="panel col-span-12 lg:col-span-4 p-4 min-h-0 flex flex-col text-sm">
+              <div className="panel-title mb-2 flex-none">Security requirements</div>
+              <div className="flex-1 min-h-0 overflow-y-auto thin-scroll pr-1">
+                <Requirements items={answeredItems} />
+              </div>
             </div>
           </div>
         </div>
-        </div>
 
-        <footer className="text-center text-xs pb-4" style={{ color: "var(--muted)" }}>
-          Based on the{" "}
-          <a className="underline" href="https://genai.owasp.org/llm-top-10/" target="_blank" rel="noreferrer">
-            OWASP Top 10 for LLM Applications 2025
-          </a>{" "}
-          · {Object.keys(CATEGORIES).length} risks · Decompose → Identify → Mitigate → Validate
-        </footer>
-
-        {tourStep === 1 && (
+        {view === "game" && tourStep === 1 && (
           <TourOverlay
             step={1}
             targetRef={dataFlowRef}
@@ -405,7 +423,7 @@ export default function App() {
             onSkip={() => setTourStep(0)}
           />
         )}
-        {tourStep === 2 && (
+        {view === "game" && tourStep === 2 && (
           <TourOverlay
             step={2}
             targetRef={threatRef}
@@ -417,7 +435,7 @@ export default function App() {
             onSkip={() => setTourStep(0)}
           />
         )}
-        {tourStep === 3 && (
+        {view === "game" && tourStep === 3 && (
           <TourOverlay
             step={3}
             targetRef={reqRef}

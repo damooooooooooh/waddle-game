@@ -5,9 +5,9 @@ import { CATEGORIES } from "../data/categories";
 import { ATTACK_CARDS, KIND_INFO, SECRET, respond } from "../lib/jailbreakBot";
 import { shuffle } from "../lib/shuffle";
 import { sfx } from "../lib/sfx";
+import { recordResult, bestFor } from "../lib/storage";
 import { confetti, celebrate, shake } from "../lib/fx";
 
-const BEST_KEY = "llm_waddle_jailbreak_best";
 const MAX_POINTS = 50;
 const LETTERS = "ABCDEF";
 
@@ -46,13 +46,9 @@ function rankFor(points) {
   return { title: "Fresh Hatchling", icon: "🐣" };
 }
 
-function readBest() {
-  try { return Number(localStorage.getItem(BEST_KEY)) || 0; } catch { return 0; }
-}
-
 const greeting = { from: "bot", text: "Hi! I'm HelpBot, Acme's support assistant. How can I help?" };
 
-export default function Jailbreak({ onExit }) {
+export default function Jailbreak({ playerName, onExit }) {
   const [step, setStep] = useState("brief"); // brief | attack | identify | mitigate | validate | done
   const [messages, setMessages] = useState([greeting]);
   const [input, setInput] = useState("");
@@ -67,7 +63,7 @@ export default function Jailbreak({ onExit }) {
   const [testOptions, setTestOptions] = useState(() => shuffle(TESTS));
   const [testChoice, setTestChoice] = useState(null);
   const [pts, setPts] = useState({ attack: 0, identify: 0, mitigate: null, validate: 0 });
-  const [best, setBest] = useState(readBest);
+  const [best, setBest] = useState(() => bestFor("jailbreak", playerName));
   const chatRef = useRef(null);
 
   const total = pts.attack + pts.identify + (pts.mitigate ?? 0) + pts.validate;
@@ -152,11 +148,9 @@ export default function Jailbreak({ onExit }) {
 
   function finish() {
     const final = total;
-    const prev = readBest();
-    if (final > prev) {
-      try { localStorage.setItem(BEST_KEY, String(final)); } catch { /* storage blocked */ }
-      setBest(final);
-    }
+    const prev = bestFor("jailbreak", playerName);
+    recordResult("jailbreak", playerName, final);
+    setBest(Math.max(prev, final));
     setStep("done");
     if (final >= MAX_POINTS * 0.7) { sfx.win(); celebrate(); }
   }
@@ -180,22 +174,22 @@ export default function Jailbreak({ onExit }) {
   const kindInfo = winning ? KIND_INFO[winning.kind] : null;
 
   return (
-    <div className="space-y-4 pop-in">
+    <div className="flex-1 min-h-0 flex flex-col gap-3 pop-in">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <div className="panel-title">Mini-game</div>
-          <h2 className="text-2xl font-extrabold neon-title">🤖 Jailbreak the Bot</h2>
+          <h2 className="text-xl font-extrabold neon-title">🤖 Jailbreak the Bot</h2>
         </div>
         <div className="flex items-center gap-2">
           <span className="stat"><small>Points</small><b>{total}<span className="text-xs opacity-60">/{MAX_POINTS}</span></b></span>
           <span className="stat"><small>Best</small><b>{best}</b></span>
-          <button className="btn" onClick={onExit}>← Mini-games</button>
+          <button className="btn" onClick={onExit}>← All games</button>
         </div>
       </div>
 
       <PhaseStepper active={phase} allDone={step === "done"} />
 
-      <div className="panel p-5 space-y-4">
+      <div className="panel p-4 space-y-3 flex-1 min-h-0 overflow-y-auto thin-scroll">
         {/* ---------- Step 1: Decompose ---------- */}
         {step === "brief" && (
           <div className="space-y-4">
@@ -235,7 +229,7 @@ export default function Jailbreak({ onExit }) {
               <div className="px-3 py-2 text-sm font-semibold border-b" style={{ borderColor: "var(--line)", background: "rgba(34,211,238,0.07)" }}>
                 💬 HelpBot · Acme Support {failed > 0 && !winning && <span className="chip ml-2">failed attempts: {failed}</span>}
               </div>
-              <div ref={chatRef} className="h-64 overflow-y-auto p-3 space-y-2" style={{ background: "rgba(0,0,0,0.25)" }}>
+              <div ref={chatRef} className="h-36 xl:h-48 overflow-y-auto p-3 space-y-2 thin-scroll" style={{ background: "rgba(0,0,0,0.25)" }}>
                 {messages.map((m, i) => (
                   <div key={i} className={`flex ${m.from === "user" ? "justify-end" : "justify-start"} pop-in`}>
                     <div
@@ -324,7 +318,7 @@ export default function Jailbreak({ onExit }) {
               Choose the defences to deploy (+5 for each that helps, −3 for each that doesn't, −2 per extra attempt). We'll replay
               your winning attack against the hardened bot: <i>"{winning.prompt}"</i>
             </p>
-            <div className="grid gap-2">
+            <div className="grid gap-2 md:grid-cols-2">
               {DEFENCES.map((d, i) => {
                 const on = !!picked[d.id];
                 const cls = deployed ? (d.good ? (on ? "is-right" : "is-dim") : on ? "is-wrong" : "is-dim") : on ? "is-right" : "";
@@ -421,7 +415,7 @@ export default function Jailbreak({ onExit }) {
               </div>
               <div className="flex flex-wrap justify-center gap-2">
                 <button className="btn btn-primary" onClick={playAgain}>⟳ Play again</button>
-                <button className="btn" onClick={onExit}>← Mini-games</button>
+                <button className="btn" onClick={onExit}>← All games</button>
               </div>
             </div>
           );

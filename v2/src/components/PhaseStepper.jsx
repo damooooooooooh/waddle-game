@@ -5,7 +5,7 @@ import { PHASES } from "../data/categories";
 export default function PhaseStepper({ active, allDone = false }) {
   const activeIdx = PHASES.findIndex(p => p.id === active);
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-2" aria-label="Threat modeling phases">
+    <div className="grid grid-cols-4 gap-2" aria-label="Threat modeling phases">
       {PHASES.map((p, i) => {
         const done = allDone || i < activeIdx;
         const isActive = !allDone && i === activeIdx;

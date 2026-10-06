@@ -11,7 +11,7 @@ export default function NodeMap({ pos, statusByNode, onGo, attackState }) {
   const packet = { attacking: "👾", repelled: "🛡️", breached: "💥" }[attackState];
   return (
     <div>
-      <div className="relative mt-5 py-2">
+      <div className="relative mt-4 py-1">
         <div className="flow-line" style={{ left: `${EDGE}%`, right: `${EDGE}%` }} />
         <div className="flow-line-done" style={{ left: `${EDGE}%`, width: `${(pos / (N - 1)) * (100 - 2 * EDGE)}%` }} />
         <div className={`packet packet-${attackState}`} style={{ left: `${centerPct(pos)}%` }} aria-hidden>
@@ -38,10 +38,6 @@ export default function NodeMap({ pos, statusByNode, onGo, attackState }) {
             );
           })}
         </div>
-      </div>
-      <div className="mt-2 flex justify-between text-xs" style={{ color: "var(--muted)" }}>
-        <span>Tip: ← → moves the duck</span>
-        <span>Secure all {N} components to finish</span>
       </div>
     </div>
   );

@@ -4,6 +4,8 @@ export const LS_PLAYER = "llm_waddle_player_name";
 export const LS_SCORES = "llm_waddle_leaderboard";
 export const LS_SESSIONS = "llm_waddle_sessions";
 
+export const GAME_IDS = ["quest", "jailbreak", "spot", "boss"];
+
 function read(key) {
   try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; }
 }
@@ -11,17 +13,40 @@ function read(key) {
 export const loadScores = () => read(LS_SCORES);
 export const loadSessions = () => read(LS_SESSIONS);
 
+// Every finished game lands here. `game` is one of GAME_IDS.
 export function saveScore(entry) {
   const list = loadScores();
-  list.push(entry);
+  list.push({ game: "quest", ...entry });
   list.sort((a, b) => (b.score - a.score) || (new Date(b.date) - new Date(a.date)));
-  localStorage.setItem(LS_SCORES, JSON.stringify(list.slice(0, 100)));
+  try { localStorage.setItem(LS_SCORES, JSON.stringify(list.slice(0, 300))); } catch { /* storage full or blocked */ }
+}
+
+export function recordResult(game, name, score) {
+  saveScore({ game, name: name || "Anonymous", score, date: new Date().toISOString() });
+}
+
+export function bestFor(game, name) {
+  const mine = loadScores().filter(s => s.game === game && s.name === (name || "Anonymous"));
+  return mine.reduce((m, s) => Math.max(m, s.score), 0);
+}
+
+// Hall of fame = each player's best score in every game, summed.
+export function hallOfFame(limit = 5) {
+  const best = {};
+  for (const s of loadScores()) {
+    const p = (best[s.name] ??= {});
+    p[s.game] = Math.max(p[s.game] ?? 0, s.score);
+  }
+  return Object.entries(best)
+    .map(([name, games]) => ({ name, games, total: Object.values(games).reduce((a, b) => a + b, 0) }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, limit);
 }
 
 export function appendSession(entry) {
   const list = loadSessions();
   list.push(entry);
-  localStorage.setItem(LS_SESSIONS, JSON.stringify(list));
+  try { localStorage.setItem(LS_SESSIONS, JSON.stringify(list)); } catch { /* ignore */ }
 }
 
 export function exportSessionsCSV() {

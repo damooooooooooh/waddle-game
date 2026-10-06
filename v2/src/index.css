@@ -14,7 +14,8 @@
 }
 
 @layer base {
-  html, body, #root { min-height: 100%; }
+  /* Kiosk: the page itself never scrolls. Views fit the viewport and scroll internally only as a last resort. */
+  html, body, #root { height: 100%; overflow: hidden; }
   body {
     margin: 0;
     color: var(--ink);
@@ -35,9 +36,7 @@
     inset: 0;
     pointer-events: none;
     z-index: 100;
-    background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.14) 0 1px, transparent 1px 3px);
-    mix-blend-mode: multiply;
-    opacity: 0.55;
+    background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.1) 0 1px, transparent 1px 3px);
   }
   ::selection { background: var(--magenta); color: #fff; }
 }
@@ -47,7 +46,6 @@
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 1rem;
-  backdrop-filter: blur(8px);
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.02) inset, 0 10px 40px -12px rgba(34, 211, 238, 0.28);
 }
 .panel-title {
@@ -73,15 +71,15 @@
 }
 .stat {
   display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
-  min-width: 5.5rem; min-height: 3.5rem; padding: 0.4rem 0.9rem;
-  border-radius: 0.8rem; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.03);
+  min-width: 4.5rem; min-height: 2.6rem; padding: 0.2rem 0.7rem;
+  border-radius: 0.7rem; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.03);
 }
-.stat small { font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
-.stat b { font-size: 1.25rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.stat small { font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.stat b { font-size: 1.05rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
 
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
-  border-radius: 0.8rem; padding: 0.55rem 1rem; font-weight: 600; font-size: 0.9rem;
+  border-radius: 0.75rem; padding: 0.4rem 0.85rem; font-weight: 600; font-size: 0.85rem;
   color: var(--ink); border: 1px solid var(--line); background: rgba(255, 255, 255, 0.04);
   cursor: pointer; transition: transform 0.12s, box-shadow 0.2s, border-color 0.2s, background 0.2s;
 }
@@ -93,21 +91,21 @@
 
 .choice {
   display: flex; align-items: flex-start; gap: 0.75rem; text-align: left; width: 100%;
-  padding: 0.8rem 1rem; border-radius: 0.9rem; font-weight: 500;
+  padding: 0.5rem 0.8rem; border-radius: 0.8rem; font-weight: 500; font-size: 0.9rem; line-height: 1.25;
   border: 1px solid var(--line); background: rgba(255, 255, 255, 0.03); color: var(--ink);
   cursor: pointer; transition: transform 0.12s, box-shadow 0.2s, border-color 0.2s, opacity 0.2s;
 }
 .choice:hover:not(:disabled) { border-color: var(--cyan); box-shadow: 0 0 20px rgba(34, 211, 238, 0.35); transform: translateY(-1px); }
 .choice:disabled { cursor: default; }
 .choice .key {
-  flex: none; width: 1.7rem; height: 1.7rem; display: inline-flex; align-items: center; justify-content: center;
+  flex: none; width: 1.5rem; height: 1.5rem; display: inline-flex; align-items: center; justify-content: center;
   border-radius: 999px; font-size: 0.8rem; font-weight: 800; border: 1px solid var(--line); background: rgba(0, 0, 0, 0.3);
 }
 .choice.is-right { border-color: var(--lime); background: rgba(163, 255, 107, 0.1); box-shadow: 0 0 22px rgba(163, 255, 107, 0.4); }
 .choice.is-wrong { border-color: var(--magenta); background: rgba(255, 46, 147, 0.1); box-shadow: 0 0 22px rgba(255, 46, 147, 0.4); }
 .choice.is-dim { opacity: 0.4; }
 
-.callout { border-radius: 0.8rem; padding: 0.7rem 0.9rem; font-size: 0.9rem; border: 1px solid; }
+.callout { border-radius: 0.7rem; padding: 0.5rem 0.75rem; font-size: 0.85rem; border: 1px solid; }
 .callout-ok { border-color: rgba(163, 255, 107, 0.5); background: rgba(163, 255, 107, 0.08); color: #d6ffb5; }
 .callout-bad { border-color: rgba(255, 46, 147, 0.55); background: rgba(255, 46, 147, 0.08); color: #ffc2de; }
 .callout-warn { border-color: rgba(251, 191, 36, 0.55); background: rgba(251, 191, 36, 0.08); color: #ffe7a3; }
@@ -124,7 +122,7 @@
   background: linear-gradient(90deg, var(--lime), var(--cyan)); box-shadow: 0 0 14px var(--lime); transition: width 0.5s ease; }
 .node {
   position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.15rem;
-  width: 100%; max-width: 8.5rem; height: 5.5rem; padding: 0.4rem; border-radius: 1rem; cursor: pointer;
+  width: 100%; max-width: 8.5rem; height: 4.4rem; padding: 0.3rem; border-radius: 1rem; cursor: pointer;
   border: 1px solid var(--line); background: rgba(10, 12, 32, 0.92); color: var(--ink);
   transition: transform 0.15s, box-shadow 0.25s, border-color 0.25s;
 }
@@ -141,10 +139,10 @@
 .packet-breached { filter: drop-shadow(0 0 14px var(--magenta)); animation: bob 0.35s ease-in-out 3; }
 
 /* ---------- Phase stepper ---------- */
-.phase { flex: 1; padding: 0.5rem 0.7rem; border-radius: 0.8rem; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.03); transition: all 0.25s; }
+.phase { flex: 1; padding: 0.3rem 0.6rem; border-radius: 0.7rem; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.03); transition: all 0.25s; }
 .phase .n { font-size: 0.65rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
-.phase .t { font-weight: 700; font-size: 0.9rem; }
-.phase .q { font-size: 0.72rem; color: var(--muted); }
+.phase .t { font-weight: 700; font-size: 0.85rem; }
+.phase .q { font-size: 0.68rem; color: var(--muted); }
 .phase.is-active { border-color: var(--cyan); background: rgba(34, 211, 238, 0.1); box-shadow: 0 0 18px rgba(34, 211, 238, 0.4); }
 .phase.is-done { border-color: rgba(163, 255, 107, 0.6); }
 .phase.is-done .n { color: var(--lime); }
@@ -165,3 +163,12 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Short screens (laptops, small kiosks): trim chrome so everything stays in view */
+@media (max-height: 820px) {
+  .phase .q { display: none; }
+  .node { height: 3.6rem; }
+  .node .text-2xl { font-size: 1.25rem; }
+  .choice { padding: 0.4rem 0.7rem; font-size: 0.85rem; }
+}
+.thin-scroll { scrollbar-width: thin; scrollbar-color: rgba(34, 211, 238, 0.4) transparent; }
