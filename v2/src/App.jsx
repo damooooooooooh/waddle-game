@@ -14,6 +14,7 @@ import QuestionCard from "./components/QuestionCard";
 import Requirements from "./components/Requirements";
 import Results from "./components/Results";
 import FxLayer from "./components/FxLayer";
+import MiniGames from "./components/MiniGames";
 import { sfx, isMuted, setMuted } from "./lib/sfx";
 import { confetti, celebrate, shake } from "./lib/fx";
 
@@ -56,6 +57,7 @@ export default function App() {
   const [bestStreak, setBestStreak] = useState(0);
   const [shaking, setShaking] = useState(false);
   const [muted, setMutedState] = useState(isMuted);
+  const [view, setView] = useState("game"); // "game" | "minigames"
   const [completed, setCompleted] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
   const [playerName, setPlayerName] = useState(() => localStorage.getItem(LS_PLAYER) || "");
@@ -138,7 +140,7 @@ export default function App() {
   // Keyboard navigation. A ref keeps the listener registered once while always
   // calling the latest handlers.
   const keyRef = useRef({});
-  keyRef.current = { attemptForward, move, locked: completed || showWelcome || tourStep > 0 };
+  keyRef.current = { attemptForward, move, locked: completed || showWelcome || tourStep > 0 || view !== "game" };
   useEffect(() => {
     const handler = (e) => {
       const k = keyRef.current;
@@ -299,14 +301,21 @@ export default function App() {
               <small>Streak</small><b className="text-base">{streak > 0 ? `🔥 ${streak}` : "—"}{multiplier > 1 ? ` · x${multiplier}` : ""}</b>
             </span>
             <span className="stat"><small>Lives</small><b className="text-base">{"🦆".repeat(Math.max(lives, 0)) || "💀"}</b></span>
+            <button onClick={() => setView(view === "game" ? "minigames" : "game")} className="btn btn-primary">
+              {view === "game" ? "🎮 Mini-games" : "← Main game"}
+            </button>
             <button onClick={toggleMute} className="btn" aria-pressed={muted} aria-label={muted ? "Unmute sound" : "Mute sound"}>{muted ? "🔇" : "🔊"}</button>
             <button onClick={restart} className="btn">⟳ Reset</button>
           </div>
         </header>
 
-        <PhaseStepper active={activePhase} allDone={completed} />
-
         {showWelcome && <Welcome playerName={playerName} setPlayerName={setPlayerName} onStart={startGame} />}
+
+        {view === "minigames" && <MiniGames onBack={() => setView("game")} />}
+
+        {/* Hidden rather than unmounted so the run's state and tour refs survive a trip to the arcade */}
+        <div className={view === "game" ? "space-y-4" : "hidden"}>
+        <PhaseStepper active={activePhase} allDone={completed} />
 
         <div className="grid grid-cols-12 gap-4 items-stretch">
           <div className="col-span-12">
@@ -371,6 +380,7 @@ export default function App() {
               <Requirements items={answeredItems} />
             </div>
           </div>
+        </div>
         </div>
 
         <footer className="text-center text-xs pb-4" style={{ color: "var(--muted)" }}>
