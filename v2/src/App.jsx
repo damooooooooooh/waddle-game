@@ -13,6 +13,12 @@ import NodeMap from "./components/NodeMap";
 import QuestionCard from "./components/QuestionCard";
 import Requirements from "./components/Requirements";
 import Results from "./components/Results";
+import FxLayer from "./components/FxLayer";
+import { sfx, isMuted, setMuted } from "./lib/sfx";
+import { confetti, celebrate, shake } from "./lib/fx";
+
+// 3 correct answers in a row = x2, 6 = x3
+const multiplierFor = (streak) => (streak >= 6 ? 3 : streak >= 3 ? 2 : 1);
 
 const START_LIVES = 3;
 const POINTS_IDENTIFY = 5;
@@ -45,6 +51,11 @@ export default function App() {
   const [playerAnswers, setPlayerAnswers] = useState({}); // threatId -> chosen mitigation
   const [hintIds, setHintIds] = useState({});             // threatId -> true
   const [verifyChecked, setVerifyChecked] = useState({});
+  const [awarded, setAwarded] = useState({});             // threatId -> { cat, mit } points earned
+  const [streak, setStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
+  const [shaking, setShaking] = useState(false);
+  const [muted, setMutedState] = useState(isMuted);
   const [completed, setCompleted] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
   const [playerName, setPlayerName] = useState(() => localStorage.getItem(LS_PLAYER) || "");
@@ -82,11 +93,37 @@ export default function App() {
     .map(t => ({ ...t, mitigationAnswer: playerAnswers[t.id] }));
 
   const activePhase = stage === "identify" ? "identify" : stage === "mitigate" ? "mitigate" : "validate";
+  const attackState = stage !== "done" ? "attacking" : statusByNode[node.id] === "secured" ? "repelled" : "breached";
+  const multiplier = multiplierFor(streak);
 
   // ---- effects ----
   useEffect(() => {
-    if (outOfLives) setCompleted(true);
+    if (!outOfLives) return;
+    setCompleted(true);
+    sfx.lose();
+    shake();
   }, [outOfLives]);
+
+  // Victory fanfare when the final component is secured with lives to spare
+  const wonRef = useRef(false);
+  useEffect(() => {
+    if (completed && !outOfLives && !wonRef.current) {
+      wonRef.current = true;
+      sfx.win();
+      celebrate();
+    }
+    if (!completed) wonRef.current = false;
+  }, [completed, outOfLives]);
+
+  // Screen shake
+  useEffect(() => {
+    const onShake = () => {
+      setShaking(true);
+      setTimeout(() => setShaking(false), 480);
+    };
+    window.addEventListener("waddle:shake", onShake);
+    return () => window.removeEventListener("waddle:shake", onShake);
+  }, []);
 
   // Save score + session once at the end of a run
   useEffect(() => {
@@ -146,18 +183,52 @@ export default function App() {
   }
 
   // ---- answering ----
+  // Shared scoring: correct answers build the streak multiplier, mistakes reset it
+  function gotItRight(field, base) {
+    const points = base * multiplier;
+    const next = streak + 1;
+    setScore(s => s + points);
+    setStreak(next);
+    setBestStreak(b => Math.max(b, next));
+    setAwarded(prev => ({ ...prev, [threat.id]: { ...prev[threat.id], [field]: points } }));
+    if (multiplierFor(next) > multiplier) sfx.streak();
+  }
+
+  function gotItWrong() {
+    setStreak(0);
+    setLives(l => l - 1);
+    shake();
+  }
+
   function chooseCategory(id) {
     if (!threat || stage !== "identify") return;
     setPlayerCats(prev => ({ ...prev, [threat.id]: id }));
-    if (id === threat.cat) setScore(s => s + POINTS_IDENTIFY);
-    else setLives(l => l - 1);
+    if (id === threat.cat) {
+      gotItRight("cat", POINTS_IDENTIFY);
+      sfx.identify();
+      confetti(0.5);
+    } else {
+      gotItWrong();
+      sfx.wrong();
+    }
   }
 
   function chooseMitigation(ans) {
     if (!threat || stage !== "mitigate") return;
     setPlayerAnswers(prev => ({ ...prev, [threat.id]: ans }));
-    if (ans === threat.mitigation) setScore(s => s + (hintUsed ? POINTS_MITIGATE_HINT : POINTS_MITIGATE));
-    else setLives(l => l - 1);
+    if (ans === threat.mitigation) {
+      gotItRight("mit", hintUsed ? POINTS_MITIGATE_HINT : POINTS_MITIGATE);
+      sfx.secure();
+      confetti(1.3);
+    } else {
+      gotItWrong();
+      sfx.breach();
+    }
+  }
+
+  function toggleMute() {
+    setMuted(!muted);
+    setMutedState(!muted);
   }
 
   function revealHint() {
@@ -187,6 +258,9 @@ export default function App() {
     setPlayerAnswers({});
     setHintIds({});
     setVerifyChecked({});
+    setAwarded({});
+    setStreak(0);
+    setBestStreak(0);
     setNodeThreats(buildRun());
     setCompleted(false);
     setSavedThisRun(false);
@@ -205,7 +279,8 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-dvh w-full p-4 md:p-6">
+    <div className={`min-h-dvh w-full p-4 md:p-6 ${shaking ? "shake" : ""}`}>
+      <FxLayer />
       <div className="mx-auto max-w-6xl space-y-4">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="flex items-center gap-3 text-2xl md:text-3xl font-extrabold tracking-tight">
@@ -220,7 +295,11 @@ export default function App() {
           <div className="flex flex-wrap items-center gap-2">
             <span className="stat"><small>Player</small><b className="text-base">{playerName || "—"}</b></span>
             <span className="stat"><small>Score</small><b>{score}</b></span>
+            <span className={`stat ${multiplier > 1 ? "streak-hot" : ""}`} title="Correct answers in a row. 3 = x2, 6 = x3">
+              <small>Streak</small><b className="text-base">{streak > 0 ? `🔥 ${streak}` : "—"}{multiplier > 1 ? ` · x${multiplier}` : ""}</b>
+            </span>
             <span className="stat"><small>Lives</small><b className="text-base">{"🦆".repeat(Math.max(lives, 0)) || "💀"}</b></span>
+            <button onClick={toggleMute} className="btn" aria-pressed={muted} aria-label={muted ? "Unmute sound" : "Mute sound"}>{muted ? "🔇" : "🔊"}</button>
             <button onClick={restart} className="btn">⟳ Reset</button>
           </div>
         </header>
@@ -233,7 +312,7 @@ export default function App() {
           <div className="col-span-12">
             <div ref={dataFlowRef} className="panel p-4">
               <div className="panel-title mb-1">Step 1 · Decompose: what are we working on?</div>
-              <NodeMap pos={pos} statusByNode={statusByNode} onGo={goTo} />
+              <NodeMap pos={pos} statusByNode={statusByNode} onGo={goTo} attackState={attackState} />
             </div>
           </div>
 
@@ -249,6 +328,7 @@ export default function App() {
                     catAnswer={catAnswer}
                     mitAnswer={mitAnswer}
                     hintUsed={hintUsed}
+                    points={awarded[threat.id]}
                     onCategory={chooseCategory}
                     onMitigation={chooseMitigation}
                     onHint={revealHint}
@@ -272,7 +352,7 @@ export default function App() {
                   playerName={playerName}
                   score={score}
                   lives={Math.max(lives, 0)}
-                  hintsUsed={Object.keys(hintIds).length}
+                  bestStreak={bestStreak}
                   items={answeredItems}
                   maxScore={MAX_SCORE}
                   outOfLives={outOfLives}

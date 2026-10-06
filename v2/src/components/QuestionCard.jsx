@@ -9,7 +9,7 @@ const LETTERS = "ABCD";
 //   Mitigate   - which control fixes it?
 //   Validate   - how would we prove the control works? (shown after answering)
 export default function QuestionCard({
-  node, threat, stage, catAnswer, mitAnswer, hintUsed,
+  node, threat, stage, catAnswer, mitAnswer, hintUsed, points,
   onCategory, onMitigation, onHint,
 }) {
   const identOk = catAnswer === threat.cat;
@@ -60,7 +60,7 @@ export default function QuestionCard({
         </div>
         {catAnswer && (
           <div className={`callout mt-2 pop-in ${identOk ? "callout-ok" : "callout-bad"}`}>
-            {identOk ? "🎯 Spot on, +5." : "That's not it. You lost a life."}{" "}
+            {identOk ? `🎯 Spot on, +${points?.cat ?? 5}.` : "That's not it. You lost a life."}{" "}
             This is <CategoryBadge id={threat.cat} />. {CATEGORIES[threat.cat].definition}
           </div>
         )}
@@ -90,7 +90,7 @@ export default function QuestionCard({
           {hintUsed && !mitAnswer && <div className="callout callout-info mt-2 pop-in">ℹ️ {threat.hint}</div>}
           {mitAnswer && (
             <div className={`callout mt-2 pop-in ${mitOk ? "callout-ok" : "callout-bad"}`}>
-              {mitOk ? `✅ Secured! +${hintUsed ? 5 : 10} points.` : "Not quite. You lost a life. The correct control is highlighted."}
+              {mitOk ? `✅ Secured! +${points?.mit ?? (hintUsed ? 5 : 10)} points.` : "Not quite. You lost a life. The correct control is highlighted."}
             </div>
           )}
         </section>

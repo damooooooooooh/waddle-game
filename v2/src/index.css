@@ -117,10 +117,10 @@
 .table-clean td { padding: 0.45rem 0.6rem; border-top: 1px solid rgba(255, 255, 255, 0.07); vertical-align: top; }
 
 /* ---------- Data-flow map ---------- */
-.flow-line { position: absolute; left: 6%; right: 6%; top: 50%; height: 2px; transform: translateY(-50%);
+.flow-line { position: absolute; top: 50%; height: 2px; transform: translateY(-50%);
   background: repeating-linear-gradient(90deg, var(--cyan) 0 10px, transparent 10px 20px);
   background-size: 20px 2px; animation: flow 1s linear infinite; opacity: 0.55; filter: drop-shadow(0 0 4px var(--cyan)); }
-.flow-line-done { position: absolute; left: 6%; top: 50%; height: 3px; transform: translateY(-50%);
+.flow-line-done { position: absolute; top: 50%; height: 3px; transform: translateY(-50%);
   background: linear-gradient(90deg, var(--lime), var(--cyan)); box-shadow: 0 0 14px var(--lime); transition: width 0.5s ease; }
 .node {
   position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.15rem;
@@ -133,6 +133,13 @@
 .node.is-secured { border-color: var(--lime); box-shadow: 0 0 18px rgba(163, 255, 107, 0.4); }
 .node.is-breached { border-color: var(--magenta); box-shadow: 0 0 18px rgba(255, 46, 147, 0.5); }
 
+/* Attack packet that travels the data flow */
+.packet { position: absolute; top: -18px; z-index: 20; transform: translateX(-50%); font-size: 1.6rem; line-height: 1;
+  transition: left 0.9s cubic-bezier(0.6, 0, 0.2, 1); pointer-events: none; }
+.packet-attacking { filter: drop-shadow(0 0 10px var(--magenta)); animation: bob 0.9s ease-in-out infinite; }
+.packet-repelled { filter: drop-shadow(0 0 12px var(--lime)); }
+.packet-breached { filter: drop-shadow(0 0 14px var(--magenta)); animation: bob 0.35s ease-in-out 3; }
+
 /* ---------- Phase stepper ---------- */
 .phase { flex: 1; padding: 0.5rem 0.7rem; border-radius: 0.8rem; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.03); transition: all 0.25s; }
 .phase .n { font-size: 0.65rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
@@ -143,6 +150,11 @@
 .phase.is-done .n { color: var(--lime); }
 
 /* ---------- Animation ---------- */
+@keyframes bob { 50% { transform: translateX(-50%) translateY(-6px); } }
+@keyframes shake { 0%, 100% { transform: translate(0); } 20% { transform: translate(-7px, 3px); } 40% { transform: translate(6px, -4px); } 60% { transform: translate(-5px, -2px); } 80% { transform: translate(4px, 3px); } }
+.shake { animation: shake 0.45s ease-in-out; }
+@keyframes flame { 50% { transform: scale(1.12); } }
+.streak-hot { animation: flame 0.7s ease-in-out infinite; border-color: var(--amber); box-shadow: 0 0 18px rgba(251, 191, 36, 0.55); }
 @keyframes flow { to { background-position: 20px 0; } }
 @keyframes pulse-glow { 50% { box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.35), 0 0 42px rgba(34, 211, 238, 0.9); } }
 @keyframes pop-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }

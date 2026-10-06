@@ -41,7 +41,7 @@ function downloadReport(text) {
 }
 
 export default function Results({
-  playerName, score, lives, hintsUsed, items, maxScore, outOfLives,
+  playerName, score, lives, bestStreak, items, maxScore, outOfLives,
   verifyChecked, onToggleVerify, onRestart, onWipe,
 }) {
   const scores = loadScores().slice(0, 3);
@@ -57,9 +57,9 @@ export default function Results({
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <div className="stat w-full"><small>Score</small><b>{score}/{maxScore}</b></div>
+        <div className="stat w-full"><small>Score</small><b>{score}</b></div>
         <div className="stat w-full"><small>Lives left</small><b>{lives}</b></div>
-        <div className="stat w-full"><small>Hints used</small><b>{hintsUsed}</b></div>
+        <div className="stat w-full"><small>Best streak</small><b>🔥 {bestStreak}</b></div>
       </div>
 
       {/* Step 4: Validate */}
