@@ -1,5 +1,5 @@
 // Tiny Web Audio synth: no audio files to ship or load.
-const LS_MUTED = "llm_waddle_muted";
+const LS_MUTED = "ai_waddle_muted";
 let ctx = null;
 let muted = false;
 try { muted = localStorage.getItem(LS_MUTED) === "1"; } catch { /* storage blocked */ }

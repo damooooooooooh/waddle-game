@@ -15,6 +15,8 @@
 
 @layer base {
   /* Kiosk: the page itself never scrolls. Views fit the viewport and scroll internally only as a last resort. */
+  /* Everything is sized in rem, so on big screens the whole UI scales up instead of leaving empty space */
+  html { font-size: clamp(16px, 0.95vw + 4px, 24px); }
   html, body, #root { height: 100%; overflow: hidden; }
   body {
     margin: 0;
@@ -91,7 +93,7 @@
 
 .choice {
   display: flex; align-items: flex-start; gap: 0.75rem; text-align: left; width: 100%;
-  padding: 0.5rem 0.8rem; border-radius: 0.8rem; font-weight: 500; font-size: 0.9rem; line-height: 1.25;
+  padding: 0.7rem 1rem; border-radius: 0.8rem; font-weight: 500; font-size: 1.1rem; line-height: 1.25;
   border: 1px solid var(--line); background: rgba(255, 255, 255, 0.03); color: var(--ink);
   cursor: pointer; transition: transform 0.12s, box-shadow 0.2s, border-color 0.2s, opacity 0.2s;
 }
@@ -105,7 +107,7 @@
 .choice.is-wrong { border-color: var(--magenta); background: rgba(255, 46, 147, 0.1); box-shadow: 0 0 22px rgba(255, 46, 147, 0.4); }
 .choice.is-dim { opacity: 0.4; }
 
-.callout { border-radius: 0.7rem; padding: 0.5rem 0.75rem; font-size: 0.85rem; border: 1px solid; }
+.callout { border-radius: 0.7rem; padding: 0.5rem 0.75rem; font-size: 1rem; border: 1px solid; }
 .callout-ok { border-color: rgba(163, 255, 107, 0.5); background: rgba(163, 255, 107, 0.08); color: #d6ffb5; }
 .callout-bad { border-color: rgba(255, 46, 147, 0.55); background: rgba(255, 46, 147, 0.08); color: #ffc2de; }
 .callout-warn { border-color: rgba(251, 191, 36, 0.55); background: rgba(251, 191, 36, 0.08); color: #ffe7a3; }
@@ -166,6 +168,7 @@
 
 /* Short screens (laptops, small kiosks): trim chrome so everything stays in view */
 @media (max-height: 820px) {
+  html { font-size: 15px; }
   .phase .q { display: none; }
   .node { height: 3.6rem; }
   .node .text-2xl { font-size: 1.25rem; }
