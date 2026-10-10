@@ -721,6 +721,8 @@ export default function App() {
 
                     <div className="callout callout-warn font-semibold p-4" style={{ lineHeight: 1.4, fontSize: "1.3rem" }}>⚠️ {activeThreat.text}</div>
 
+                    {hintUsed && <div className="callout callout-info pop-in" style={{ fontSize: "1.1rem" }}>💡 <b>Hint:</b> {activeThreat.hint}</div>}
+
                     <div className="panel-title">What are we going to do about it?</div>
                     <div className="grid gap-3">
                       {activeThreat.shuffled.map((c, idx) => {
@@ -745,7 +747,6 @@ export default function App() {
                     </div>
 
                     {blockedNotice && answered !== "correct" && <div className="callout callout-warn">⚠️ Answer the question before moving forward.</div>}
-                    {hintUsed && <div className="callout callout-info pop-in">ℹ️ {activeThreat.hint}</div>}
                     {answered && !showExplain && (
                       <button className="callout callout-info w-full text-left" onClick={() => setShowExplain(true)}>
                         {answered === "correct" ? "✅ Secured." : "❌ Not quite."} 🎓 Show the explanation again
