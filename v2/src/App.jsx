@@ -353,7 +353,7 @@ export default function App() {
     if (isCorrect) {
       clearBlockedNotice();            // <- cancel any stale warning
       const next = streak + 1;
-      const earned = (hintUsed ? 5 : 10) * multiplier;
+      const earned = 10 * multiplier; // the hint cost is taken off the score when the hint is opened
       setLastPoints(earned);
       setScore(s => s + earned);
       setStreak(next);
@@ -739,7 +739,7 @@ export default function App() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                      <button className="btn" onClick={() => setHintUsed(true)} disabled={hintUsed || !!answered}>💡 Hint (−5)</button>
+                      <button className="btn" onClick={() => { setHintUsed(true); setScore(sc => Math.max(0, sc - 5)); sfx.wrong(); }} disabled={hintUsed || !!answered}>💡 Hint (−5 points)</button>
                       <button className="btn" onClick={() => move(-1)} disabled={pos === 0}>↩ Back</button>
                       <button className={`btn ${canAdvanceNow() ? "btn-primary nudge" : ""}`} onClick={attemptForward} disabled={!canAdvanceNow()}>
                         {pos === NODES.length - 1 ? "🏁 Finish" : "Next node →"}
