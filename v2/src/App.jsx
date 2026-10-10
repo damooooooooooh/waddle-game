@@ -739,7 +739,7 @@ export default function App() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                      <button className="btn" onClick={() => setHintUsed(true)} disabled={hintUsed || !!answered}>💡 Hint (−5)</button>
+                      <button className="btn" onClick={() => setHintUsed(true)} disabled={hintUsed || !!answered}>💡 Hint (answer worth 5 less)</button>
                       <button className="btn" onClick={() => move(-1)} disabled={pos === 0}>↩ Back</button>
                       <button className={`btn ${canAdvanceNow() ? "btn-primary nudge" : ""}`} onClick={attemptForward} disabled={!canAdvanceNow()}>
                         {pos === NODES.length - 1 ? "🏁 Finish" : "Next node →"}
